@@ -1,0 +1,5 @@
+{
+  "name": "AIF-BIN Forensic Suite",
+  "description": "A professional-grade binary analyzer and viewer for the AIF-BIN format, featuring a React-based interactive inspector and a production-ready Python CLI exporter.",
+  "requestFramePermissions": []
+}
