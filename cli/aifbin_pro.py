@@ -783,6 +783,334 @@ def cmd_models(args):
         print()
 
 # ============================================================
+# INGESTOR — AI PROVIDERS
+# ============================================================
+
+import mimetypes
+from abc import ABC, abstractmethod
+
+CONFIG_DIR = Path.home() / ".aifbin"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+
+DEFAULT_CONFIG = {
+    "default_provider": "none",
+    "providers": {
+        "anthropic": {"api_key": ""},
+        "openai": {"api_key": ""},
+        "gemini": {"api_key": ""},
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"}
+    }
+}
+
+def load_config() -> Dict[str, Any]:
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    return DEFAULT_CONFIG
+
+def save_config(config: Dict):
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
+
+@dataclass
+class ExtractionResult:
+    title: str
+    summary: str
+    tags: List[str]
+    chunks: List[Dict[str, str]]
+    metadata: Dict[str, Any]
+
+class AIProvider(ABC):
+    @abstractmethod
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        pass
+    
+    @abstractmethod
+    def is_configured(self) -> bool:
+        pass
+
+class AnthropicProvider(AIProvider):
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+    
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        import anthropic
+        import base64
+        client = anthropic.Anthropic(api_key=self.api_key)
+        
+        if mime_type.startswith('text/') or mime_type in ['application/json', 'application/xml']:
+            text_content = content.decode('utf-8', errors='replace')
+            message_content = f"Analyze this file named '{filename}':\n\n{text_content[:50000]}"
+        elif mime_type.startswith('image/'):
+            b64 = base64.b64encode(content).decode('utf-8')
+            message_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": b64}},
+                {"type": "text", "text": f"Analyze this image named '{filename}'."}
+            ]
+        else:
+            text_content = content.decode('utf-8', errors='replace')[:5000]
+            message_content = f"Binary file '{filename}' ({mime_type}):\n\n{text_content}"
+        
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": message_content}],
+            system="Extract and return JSON: {title, summary, tags:[], chunks:[{label,content}], metadata:{}}"
+        )
+        
+        try:
+            result = json.loads(response.content[0].text)
+            return ExtractionResult(result.get('title', filename), result.get('summary', ''),
+                result.get('tags', []), result.get('chunks', []), result.get('metadata', {}))
+        except:
+            return ExtractionResult(filename, response.content[0].text[:500], [], [], {})
+
+class OpenAIProvider(AIProvider):
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+    
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        import openai
+        import base64
+        client = openai.OpenAI(api_key=self.api_key)
+        
+        if mime_type.startswith('text/'):
+            text_content = content.decode('utf-8', errors='replace')[:50000]
+            messages = [{"role": "user", "content": f"Analyze '{filename}', return JSON:\n\n{text_content}"}]
+        elif mime_type.startswith('image/'):
+            b64 = base64.b64encode(content).decode('utf-8')
+            messages = [{"role": "user", "content": [
+                {"type": "text", "text": f"Analyze image '{filename}', return JSON"},
+                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64}"}}
+            ]}]
+        else:
+            text_content = content.decode('utf-8', errors='replace')[:5000]
+            messages = [{"role": "user", "content": f"Analyze '{filename}':\n\n{text_content}"}]
+        
+        response = client.chat.completions.create(model="gpt-4o", messages=messages, response_format={"type": "json_object"})
+        result = json.loads(response.choices[0].message.content)
+        return ExtractionResult(result.get('title', filename), result.get('summary', ''),
+            result.get('tags', []), result.get('chunks', []), result.get('metadata', {}))
+
+class GeminiProvider(AIProvider):
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+    
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        import google.generativeai as genai
+        genai.configure(api_key=self.api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"Analyze '{filename}', return JSON: {{title, summary, tags, chunks:[{{label,content}}], metadata}}"
+        
+        if mime_type.startswith('image/'):
+            import PIL.Image, io
+            image = PIL.Image.open(io.BytesIO(content))
+            response = model.generate_content([prompt, image])
+        else:
+            text_content = content.decode('utf-8', errors='replace')[:50000]
+            response = model.generate_content(f"{prompt}\n\nContent:\n{text_content}")
+        
+        try:
+            text = response.text.strip()
+            if text.startswith('```'): text = text.split('\n', 1)[1].rsplit('```', 1)[0]
+            result = json.loads(text)
+            return ExtractionResult(result.get('title', filename), result.get('summary', ''),
+                result.get('tags', []), result.get('chunks', []), result.get('metadata', {}))
+        except:
+            return ExtractionResult(filename, response.text[:500], [], [], {})
+
+class OllamaProvider(AIProvider):
+    def __init__(self, base_url: str, model: str):
+        self.base_url = base_url
+        self.model = model
+    
+    def is_configured(self) -> bool:
+        try:
+            import requests
+            return requests.get(f"{self.base_url}/api/tags", timeout=2).status_code == 200
+        except:
+            return False
+    
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        import requests
+        text_content = content.decode('utf-8', errors='replace')[:20000]
+        prompt = f"Analyze '{filename}', return JSON: {{title, summary, tags, chunks, metadata}}\n\n{text_content}"
+        response = requests.post(f"{self.base_url}/api/generate", json={"model": self.model, "prompt": prompt, "stream": False})
+        try:
+            text = response.json()['response']
+            if '{' in text: text = text[text.index('{'):text.rindex('}')+1]
+            result = json.loads(text)
+            return ExtractionResult(result.get('title', filename), result.get('summary', ''),
+                result.get('tags', []), result.get('chunks', []), result.get('metadata', {}))
+        except:
+            return ExtractionResult(filename, "Extraction failed", [], [], {})
+
+class NoAIProvider(AIProvider):
+    def is_configured(self) -> bool:
+        return True
+    
+    def extract(self, content: bytes, filename: str, mime_type: str) -> ExtractionResult:
+        text = content.decode('utf-8', errors='replace')
+        lines = text.strip().split('\n')
+        title = lines[0][:100].lstrip('#').strip() if lines else filename
+        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+        chunks = [{"label": f"Section {i+1}", "content": p[:1000]} for i, p in enumerate(paragraphs[:10])]
+        return ExtractionResult(title or filename, f"File: {filename} ({len(content)} bytes)", [], chunks, {})
+
+def get_provider(name: str, config: Dict) -> AIProvider:
+    pc = config.get('providers', {})
+    if name == 'anthropic': return AnthropicProvider(pc.get('anthropic', {}).get('api_key', ''))
+    elif name == 'openai': return OpenAIProvider(pc.get('openai', {}).get('api_key', ''))
+    elif name == 'gemini': return GeminiProvider(pc.get('gemini', {}).get('api_key', ''))
+    elif name == 'ollama':
+        cfg = pc.get('ollama', {})
+        return OllamaProvider(cfg.get('base_url', 'http://localhost:11434'), cfg.get('model', 'llama3.2'))
+    return NoAIProvider()
+
+def get_mime_type(filepath: Path) -> str:
+    mime, _ = mimetypes.guess_type(str(filepath))
+    if mime: return mime
+    ext_map = {'.md': 'text/markdown', '.txt': 'text/plain', '.json': 'application/json',
+               '.pdf': 'application/pdf', '.py': 'text/x-python', '.js': 'text/javascript'}
+    return ext_map.get(filepath.suffix.lower(), 'application/octet-stream')
+
+def ingest_file(filepath: Path, output_dir: Path, provider: AIProvider) -> Dict[str, Any]:
+    with open(filepath, 'rb') as f:
+        content = f.read()
+    
+    mime_type = get_mime_type(filepath)
+    extraction = provider.extract(content, filepath.name, mime_type)
+    
+    # Generate embeddings
+    embeddings = []
+    if extraction.chunks:
+        try:
+            model = get_embedding_model('minilm')
+            texts = [c.get('content', '')[:512] for c in extraction.chunks]
+            embeddings = model.encode(texts, show_progress_bar=False).tolist()
+        except:
+            embeddings = [None] * len(extraction.chunks)
+    
+    chunks = []
+    for i, chunk_data in enumerate(extraction.chunks):
+        chunks.append(ContentChunk(
+            chunk_type=ChunkType.TEXT,
+            data=chunk_data.get('content', '').encode('utf-8'),
+            metadata={'label': chunk_data.get('label', f'Chunk {i}')},
+            embedding=embeddings[i] if i < len(embeddings) else None
+        ))
+    
+    if not chunks:
+        chunks.append(ContentChunk(chunk_type=ChunkType.TEXT, data=content[:10000], metadata={'label': 'Content'}, embedding=None))
+    
+    metadata = {
+        'source_file': str(filepath), 'title': extraction.title, 'summary': extraction.summary,
+        'tags': extraction.tags, 'mime_type': mime_type, 'file_size': len(content),
+        'created_at': datetime.now().isoformat(), 'extracted_metadata': extraction.metadata
+    }
+    
+    aifbin = AIFBINFile(metadata=metadata, chunks=chunks, original_raw=content, versions=[])
+    output_path = output_dir / f"{filepath.stem}.aif-bin"
+    size = write_aifbin_v2(aifbin, str(output_path))
+    
+    return {'source': str(filepath), 'output': str(output_path), 'title': extraction.title, 'chunks': len(chunks), 'size': size}
+
+def cmd_ingest(args):
+    """Ingest any file into AIF-BIN format with optional AI extraction."""
+    print_header("AIF-BIN Pro — Ingest")
+    
+    source = Path(args.source)
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    if source.is_file():
+        files = [source]
+    else:
+        files = [f for f in source.glob('*.*') if f.is_file() and not f.name.startswith('.')]
+    
+    if not files:
+        print_warning(f"No files found in {source}")
+        return
+    
+    config = load_config()
+    provider_name = args.provider or config.get('default_provider', 'none')
+    provider = get_provider(provider_name, config)
+    
+    if provider_name != 'none' and not provider.is_configured():
+        print_warning(f"Provider '{provider_name}' not configured. Using basic extraction.")
+        print_info(f"Run: aifbin config --provider {provider_name} --api-key YOUR_KEY")
+        provider = NoAIProvider()
+        provider_name = 'none'
+    
+    print_info(f"Files: {len(files)}")
+    print_info(f"Output: {output_dir}")
+    print_info(f"Provider: {provider_name}")
+    print()
+    
+    results = []
+    for f in files:
+        try:
+            result = ingest_file(f, output_dir, provider)
+            results.append(result)
+            print_file(f.name, f"→ {result['title'][:40]}... ({result['chunks']} chunks)")
+        except Exception as e:
+            print_error(f"{f.name}: {e}")
+    
+    print()
+    print_success(f"Ingested {len(results)} file(s)")
+    print_info(f"Total size: {sum(r['size'] for r in results):,} bytes")
+
+def cmd_config(args):
+    """Configure AI providers."""
+    config = load_config()
+    
+    if args.provider and args.api_key:
+        if args.provider not in config['providers']:
+            config['providers'][args.provider] = {}
+        config['providers'][args.provider]['api_key'] = args.api_key
+        save_config(config)
+        print_success(f"Saved API key for {args.provider}")
+        return
+    
+    if args.default:
+        config['default_provider'] = args.default
+        save_config(config)
+        print_success(f"Default provider: {args.default}")
+        return
+    
+    print_header("AIF-BIN Pro — Configuration")
+    print(f"  Config file: {CONFIG_FILE}")
+    print(f"  Default provider: {config.get('default_provider', 'none')}")
+    print()
+    print("  Providers:")
+    for name, cfg in config.get('providers', {}).items():
+        key = cfg.get('api_key', '')
+        status = f"{Colors.GREEN}✓ configured{Colors.RESET}" if key else f"{Colors.DIM}✗ not set{Colors.RESET}"
+        print(f"    {name}: {status}")
+
+def cmd_providers(args):
+    """List available AI providers."""
+    print_header("AIF-BIN Pro — AI Providers")
+    print(f"  {Colors.BOLD}anthropic{Colors.RESET}  — Claude (best for documents)")
+    print(f"  {Colors.BOLD}openai{Colors.RESET}     — GPT-4 (good all-around)")
+    print(f"  {Colors.BOLD}gemini{Colors.RESET}     — Gemini (good for images)")
+    print(f"  {Colors.BOLD}ollama{Colors.RESET}     — Local models (free, private)")
+    print(f"  {Colors.BOLD}none{Colors.RESET}       — Basic extraction (no AI)")
+    print()
+    print(f"  {Colors.DIM}Configure: aifbin config --provider anthropic --api-key sk-ant-...{Colors.RESET}")
+
+# ============================================================
 # MAIN
 # ============================================================
 
@@ -844,6 +1172,21 @@ def main():
     # models
     p_models = subparsers.add_parser('models', help='List available models')
     
+    # ingest
+    p_ingest = subparsers.add_parser('ingest', help='Convert any file to AIF-BIN with AI')
+    p_ingest.add_argument('source', help='File or directory to ingest')
+    p_ingest.add_argument('-o', '--output', required=True, help='Output directory')
+    p_ingest.add_argument('-p', '--provider', choices=['anthropic', 'openai', 'gemini', 'ollama', 'none'], help='AI provider')
+    
+    # config
+    p_config = subparsers.add_parser('config', help='Configure AI providers')
+    p_config.add_argument('--provider', help='Provider name')
+    p_config.add_argument('--api-key', help='API key')
+    p_config.add_argument('--default', help='Set default provider')
+    
+    # providers
+    p_providers = subparsers.add_parser('providers', help='List AI providers')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -863,6 +1206,9 @@ def main():
         'diff': cmd_diff,
         'export': cmd_export,
         'models': cmd_models,
+        'ingest': cmd_ingest,
+        'config': cmd_config,
+        'providers': cmd_providers,
     }
     
     commands[args.command](args)
