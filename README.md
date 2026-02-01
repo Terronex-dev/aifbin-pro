@@ -14,6 +14,10 @@ Pro primarily uses the v2 AIF-BIN format (.aif-bin) for optimal performance.
 
 ---
 
+## Documentation
+
+- [Technical Whitepaper](docs/whitepaper.html) - Full specification and theory
+
 ## What is AIF-BIN?
 
 A file format specification with two versions:
