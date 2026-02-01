@@ -27,7 +27,9 @@ aifbin-pro/
 ├── cli/                    # Command-line tools
 │   ├── aifbin_pro.py       # Main CLI with all commands
 │   └── aifbin_spec_v2.py   # v2 binary format library
+├── studio/                 # Desktop app (Tauri)
 ├── inspector/              # Web-based file analyzer (React)
+├── releases/               # Pre-built binaries
 ├── legal/                  # Terms, Privacy Policy
 └── docs/                   # Documentation
 ```
@@ -79,9 +81,34 @@ python3 cli/aifbin_pro.py info file.aif-bin
 
 ---
 
+## Desktop App (Studio)
+
+Native desktop app for inspecting and managing AIF-BIN files. Built with Tauri for maximum performance and minimal size.
+
+**Downloads:**
+- [Linux x64 Binary](releases/v1.0.0/aifbin-studio) (11MB)
+- [Debian/Ubuntu .deb](releases/v1.0.0/AIF-BIN%20Studio_1.0.0_amd64.deb) (3.4MB)
+- [Fedora/RHEL .rpm](releases/v1.0.0/AIF-BIN%20Studio-1.0.0-1.x86_64.rpm) (3.4MB)
+
+**Features:**
+- Full v2 binary format parser
+- Hex byte inspector
+- Content chunk viewer
+- File library management
+- Dark theme (Terronex design system)
+
+**Build from source:**
+```bash
+cd studio
+npm install
+cargo tauri build
+```
+
+---
+
 ## Web Inspector
 
-Visual tool for analyzing AIF-BIN files.
+Visual tool for analyzing AIF-BIN files in the browser.
 
 ```bash
 cd inspector
