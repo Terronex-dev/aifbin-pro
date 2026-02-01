@@ -2,6 +2,8 @@
 
 **AI Formatted - Binary** — Professional toolkit for semantic search, batch processing, and visual inspection.
 
+[![Patent Pending](https://img.shields.io/badge/Patent-Pending-blue.svg)](https://www.terronex.dev)
+
 | Version | Extension | Full Name | Format |
 |---------|-----------|-----------|--------|
 | v1 | `.aimf` | AI Memory Format | JSON |
