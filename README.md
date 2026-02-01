@@ -1,18 +1,38 @@
 # AIF-BIN Pro
 
-Professional AI memory management toolkit with semantic search, batch processing, and visual inspection.
+**AI-Native File Format** — Professional toolkit for semantic search, batch processing, and visual inspection.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+
+---
+
+## What is AIF-BIN?
+
+AIF-BIN is a binary file format that makes any document AI-native. A single `.aif-bin` file contains:
+
+- **Original document** — The source file preserved
+- **Extracted content** — Text, tables, code blocks
+- **Embeddings** — Vector representations for semantic search
+- **Metadata** — Title, tags, timestamps, checksums
+
+One file. Fully portable. Works offline.
+
+---
 
 ## What's Included
 
 ```
 aifbin-pro/
 ├── cli/                    # Command-line tools
-│   ├── aifbin_pro.py       # Main CLI
+│   ├── aifbin_pro.py       # Main CLI with all commands
 │   └── aifbin_spec_v2.py   # v2 binary format library
-├── inspector/              # Web-based file analyzer
-├── legal/                  # Terms, Privacy, License
+├── inspector/              # Web-based file analyzer (React)
+├── legal/                  # Terms, Privacy Policy
 └── docs/                   # Documentation
 ```
+
+---
 
 ## Quick Start
 
@@ -30,18 +50,22 @@ python3 cli/aifbin_pro.py search "query" -d memories/
 python3 cli/aifbin_pro.py info file.aif-bin
 ```
 
+---
+
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
-| `migrate` | Convert files to AIF-BIN (v2 binary) |
+| `migrate` | Convert files to AIF-BIN (v2 binary format) |
 | `search` | Semantic search across memories |
-| `info` | Show file metadata |
+| `info` | Show file metadata and structure |
 | `extract` | Recover original content |
 | `watch` | Auto-sync on file changes |
-| `diff` | Compare two files |
+| `diff` | Compare two AIF-BIN files |
 | `export` | Export to JSON, CSV, HTML, Markdown |
 | `models` | List available embedding models |
+
+---
 
 ## Embedding Models
 
@@ -53,6 +77,8 @@ python3 cli/aifbin_pro.py info file.aif-bin
 | bge-base | 768 | Best quality retrieval |
 | e5-small | 384 | Microsoft E5, fast |
 
+---
+
 ## Web Inspector
 
 Visual tool for analyzing AIF-BIN files.
@@ -63,31 +89,78 @@ npm install
 npm run dev
 ```
 
-Features:
+**Features:**
 - Parse and validate v2 binary format
 - View metadata and content chunks
 - Hex byte inspector
 - Extract embedded content
 - Embedding visualization
 
+---
+
 ## v2 Binary Format
 
 Compact binary format with MessagePack encoding:
-- ~50% smaller than JSON
-- Fast parsing
-- Embedded checksums
+
+- ~50% smaller than JSON-based formats
+- Fast parsing with fixed-offset headers
+- Embedded CRC64 checksums
 - Original content preservation
+- Streaming support for large files
 
-## License
+**Format Structure:**
+```
+[Header: 64 bytes]
+  Magic: "AIFBIN\x00\x01"
+  Version, Offsets, Size
 
-Commercial License. See `legal/LICENSE_EULA.md` for terms.
+[Metadata Section]
+  MessagePack blob
 
-## Links
+[Original Raw Section] (optional)
+  Preserved source file
 
-- Website: [aifbin.com](https://aifbin.com)
-- Documentation: [aifbin.com/docs](https://aifbin.com/docs)
-- Support: support@terronex.dev
+[Content Chunks]
+  Typed chunks: TEXT, TABLE, IMAGE, AUDIO, VIDEO, CODE
+  Each with metadata + embeddings
+
+[Footer]
+  Index + Checksum
+```
 
 ---
 
-AIF-BIN™ © 2026 Terronex.dev. All rights reserved.
+## Privacy & Security
+
+- **Local-first:** All processing happens on your machine
+- **No telemetry:** We don't collect usage data
+- **BYO API keys:** Use your own AI provider credentials
+- **Open format:** No vendor lock-in
+
+---
+
+## Legal Notices
+
+- **AIF-BIN™** is a trademark of Terronex.dev.
+- This software is provided under the **MIT License** (see [LICENSE](LICENSE)).
+- See [NOTICE](NOTICE) file for additional copyright and trademark information.
+- This is **beta software** — use at your own risk.
+
+---
+
+## Links
+
+- **Website:** [terronex.dev/aifbin](https://terronex.dev/aifbin/)
+- **GitHub:** [github.com/terronexdev/aifbin-pro](https://github.com/terronexdev/aifbin-pro)
+- **Support:** support@terronex.dev
+- **Twitter:** [@terronexdev](https://x.com/terronexdev)
+
+---
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting PRs.
+
+---
+
+© 2026 Terronex.dev. All rights reserved.
