@@ -4,7 +4,3 @@ release/
 .vite/
 *.log
 .DS_Store
-
-# Tauri build artifacts
-src-tauri/target/
-src-tauri/gen/schemas/

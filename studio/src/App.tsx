@@ -1,15 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { encode as msgpackEncode, decode as msgpackDecode } from '@msgpack/msgpack';
-import { 
-  isTauri, 
-  listLibrary, 
-  saveToLibrary, 
-  readFromLibrary, 
-  deleteFromLibrary,
-  getLibraryFolder,
-  type LibraryFile 
-} from './lib/library';
+import { encode as msgpackEncode } from '@msgpack/msgpack';
 
 // ============================================================
 // TERRONEX DESIGN SYSTEM - Styles
@@ -653,17 +644,17 @@ const styles = `
   }
   
   .settings-card-icon {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     background: var(--bg-elevated);
-    border-radius: 6px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--accent-cyan);
   }
   
-  .settings-card-icon svg { width: 16px; height: 16px; }
+  .settings-card-icon svg { width: 20px; height: 20px; }
   
   .settings-card-title {
     font-size: 14px;
@@ -763,11 +754,6 @@ const styles = `
   @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
-  }
-  
-  @keyframes glow {
-    from { box-shadow: 0 0 5px var(--accent-cyan), 0 0 10px var(--accent-cyan); }
-    to { box-shadow: 0 0 10px var(--accent-cyan), 0 0 20px var(--accent-cyan), 0 0 30px var(--accent-cyan); }
   }
 `;
 
@@ -975,7 +961,7 @@ interface Toast {
   type: 'success' | 'error';
 }
 
-type TabType = 'inspector' | 'ingestor' | 'settings';
+type TabType = 'inspector' | 'ingestor' | 'search' | 'settings';
 type InspectorSubTab = 'overview' | 'source' | 'chunks' | 'metadata' | 'hex';
 
 // ============================================================
@@ -1375,7 +1361,7 @@ const TitleBar: React.FC<{ onOpenSettings: () => void }> = ({ onOpenSettings }) 
   <div className="titlebar">
     <div className="titlebar-logo">
       <Icons.Logo />
-      <span>AIF-BIN Studio</span>
+      <span>AIF-BIN Pro</span>
     </div>
     <div className="titlebar-actions">
       <button className="titlebar-btn" onClick={onOpenSettings}>
@@ -1394,204 +1380,14 @@ const Tabs: React.FC<{ active: TabType; onChange: (tab: TabType) => void }> = ({
     <button className={`tab ${active === 'ingestor' ? 'active' : ''}`} onClick={() => onChange('ingestor')}>
       <Icons.Upload /> Ingestor
     </button>
+    <button className={`tab ${active === 'search' ? 'active' : ''}`} onClick={() => onChange('search')}>
+      <Icons.Search /> Search
+    </button>
     <button className={`tab ${active === 'settings' ? 'active' : ''}`} onClick={() => onChange('settings')}>
       <Icons.Settings /> Settings
     </button>
   </div>
 );
-
-// ============================================================
-// Library Sidebar (Persistent across all tabs)
-// ============================================================
-
-const LibrarySidebar: React.FC<{
-  files: AifBinFile[];
-  selectedFile: AifBinFile | null;
-  onSelectFile: (f: AifBinFile) => void;
-  onFilesAdded: (files: AifBinFile[]) => void;
-  onDeleteFile?: (name: string) => Promise<boolean>;
-  isDesktop: boolean;
-  libraryPath: string;
-  highlightedFiles?: Set<string>;
-}> = ({ files, selectedFile, onSelectFile, onFilesAdded, onDeleteFile, isDesktop, libraryPath, highlightedFiles = new Set() }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'size'>('date');
-  const [sortAsc, setSortAsc] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Process dropped/selected .aif-bin files
-  const processFiles = useCallback(async (fileList: FileList | File[]) => {
-    const aifbinFiles: AifBinFile[] = [];
-    
-    for (const file of Array.from(fileList)) {
-      if (file.name.endsWith('.aif-bin')) {
-        const buffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        const parsed = await parseAifBinV2(bytes);
-        
-        aifbinFiles.push({
-          path: file.name,
-          name: file.name,
-          size: file.size,
-          rawBytes: bytes,
-          ...parsed,
-        });
-      }
-    }
-    
-    if (aifbinFiles.length > 0) {
-      onFilesAdded(aifbinFiles);
-    }
-  }, [onFilesAdded]);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      processFiles(e.target.files);
-    }
-  };
-
-  // Filter files by search query
-  const filteredFiles = files.filter(f => 
-    f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.source?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.sourceContent?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Sort files
-  const sortedFiles = [...filteredFiles].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'name') cmp = a.name.localeCompare(b.name);
-    else if (sortBy === 'size') cmp = (a.size || 0) - (b.size || 0);
-    else if (sortBy === 'date') cmp = (a.created || '').localeCompare(b.created || '');
-    return sortAsc ? cmp : -cmp;
-  });
-
-  const handleDelete = async (e: React.MouseEvent, fileName: string) => {
-    e.stopPropagation();
-    if (onDeleteFile && confirm(`Delete ${fileName}?`)) {
-      await onDeleteFile(fileName);
-    }
-  };
-
-  return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-title">
-          {isDesktop ? '📁 Library' : '📄 Loaded Files'}
-        </div>
-        
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 8 }}>
-          <input
-            className="input"
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: 32, fontSize: 12, padding: '8px 12px 8px 32px' }}
-          />
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }}>
-            <Icons.Search />
-          </span>
-        </div>
-
-        {/* Sort */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          <select 
-            className="select" 
-            value={sortBy} 
-            onChange={(e) => setSortBy(e.target.value as any)}
-            style={{ flex: 1, fontSize: 11, padding: '6px 8px' }}
-          >
-            <option value="date">Sort: Date</option>
-            <option value="name">Sort: Name</option>
-            <option value="size">Sort: Size</option>
-          </select>
-          <button 
-            className="btn btn-secondary btn-sm"
-            onClick={() => setSortAsc(!sortAsc)}
-            style={{ padding: '6px 8px' }}
-          >
-            {sortAsc ? '↑' : '↓'}
-          </button>
-        </div>
-
-        {/* Open Files Button */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden-input"
-          multiple
-          accept=".aif-bin"
-          onChange={handleFileInput}
-        />
-        <button 
-          className="btn btn-secondary" 
-          onClick={() => fileInputRef.current?.click()} 
-          style={{ width: '100%', fontSize: 11 }}
-        >
-          <Icons.Folder /> Open .aif-bin Files
-        </button>
-      </div>
-
-      <div className="sidebar-list">
-        {sortedFiles.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>
-            {searchQuery ? 'No matches found.' : (isDesktop ? 'Library empty. Ingest files to get started.' : 'No files loaded yet.')}
-          </div>
-        ) : (
-          sortedFiles.map((file, i) => {
-            const isHighlighted = highlightedFiles.has(file.name);
-            return (
-              <div 
-                key={i} 
-                className={`file-item ${selectedFile?.path === file.path ? 'active' : ''}`}
-                onClick={() => onSelectFile(file)}
-                style={isHighlighted ? {
-                  animation: 'glow 1s ease-in-out infinite alternate',
-                  boxShadow: '0 0 10px var(--accent-cyan), 0 0 20px var(--accent-cyan)',
-                  borderColor: 'var(--accent-cyan)',
-                } : undefined}
-              >
-                <div className="file-item-icon" style={isHighlighted ? { color: 'var(--accent-cyan)' } : undefined}>
-                  <Icons.File />
-                </div>
-                <div className="file-item-info">
-                  <div className="file-item-name" style={isHighlighted ? { color: 'var(--accent-cyan)' } : undefined}>
-                    {file.name}
-                  </div>
-                  <div className="file-item-meta">{formatBytes(file.size)} • {file.format}</div>
-                </div>
-                {isDesktop && onDeleteFile && (
-                  <button 
-                    className="btn btn-sm"
-                    onClick={(e) => handleDelete(e, file.name)}
-                    style={{ padding: 4, background: 'transparent', border: 'none', color: 'var(--text-tertiary)' }}
-                    title="Delete"
-                  >
-                    <Icons.X />
-                  </button>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Library path (desktop only) */}
-      {isDesktop && libraryPath && (
-        <div style={{ 
-          padding: '8px 12px', 
-          fontSize: 10, 
-          color: 'var(--text-tertiary)', 
-          borderTop: '1px solid var(--border-subtle)',
-          wordBreak: 'break-all'
-        }}>
-          📂 {libraryPath}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const StatusBar: React.FC<{ fileCount: number; message?: string; providers: ProviderConfig[] }> = ({ fileCount, message, providers }) => {
   const configuredCount = providers.filter(p => p.configured).length;
@@ -1824,56 +1620,145 @@ const HexPanel: React.FC<{ file: AifBinFile }> = ({ file }) => {
   );
 };
 
-// Inspector Tab (Content Only - Sidebar is now global)
+// Inspector Tab
 const InspectorTab: React.FC<{ 
+  files: AifBinFile[]; 
   selectedFile: AifBinFile | null; 
+  onSelectFile: (f: AifBinFile) => void; 
+  onFilesAdded: (files: AifBinFile[]) => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
-}> = ({ selectedFile, onToast }) => {
+}> = ({ files, selectedFile, onSelectFile, onFilesAdded, onToast }) => {
+  const [dragActive, setDragActive] = useState(false);
   const [subTab, setSubTab] = useState<InspectorSubTab>('overview');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processFiles = useCallback(async (fileList: FileList | File[]) => {
+    const aifbinFiles: AifBinFile[] = [];
+    
+    for (const file of Array.from(fileList)) {
+      if (file.name.endsWith('.aif-bin')) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        const parsed = await parseAifBinV2(bytes);
+        
+        aifbinFiles.push({
+          path: file.name,
+          name: file.name,
+          size: file.size,
+          rawBytes: bytes,
+          ...parsed,
+        });
+      }
+    }
+    
+    if (aifbinFiles.length > 0) {
+      onFilesAdded(aifbinFiles);
+      onToast(`Loaded ${aifbinFiles.length} file(s)`, 'success');
+    }
+  }, [onFilesAdded, onToast]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    processFiles(e.dataTransfer.files);
+  }, [processFiles]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processFiles(e.target.files);
+    }
+  };
 
   return (
-    <div className="content">
-      {!selectedFile ? (
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          height: '100%',
-          color: 'var(--text-tertiary)',
-          padding: 48
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📄</div>
-          <div style={{ fontSize: 16, marginBottom: 8 }}>No file selected</div>
-          <div style={{ fontSize: 13 }}>Select a file from the library or ingest new files</div>
+    <div className="main">
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-title">Loaded Files</div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden-input"
+            multiple
+            accept=".aif-bin"
+            onChange={handleFileInput}
+          />
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => fileInputRef.current?.click()} 
+            style={{ width: '100%' }}
+          >
+            <span className="btn-icon"><Icons.Folder /></span>
+            Open Files
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="sub-tabs">
-            <button className={`sub-tab ${subTab === 'overview' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
-              <Icons.Info /> Overview
-            </button>
-            <button className={`sub-tab ${subTab === 'source' ? 'active' : ''}`} onClick={() => setSubTab('source')}>
-              <Icons.FileText /> Source
-            </button>
-            <button className={`sub-tab ${subTab === 'chunks' ? 'active' : ''}`} onClick={() => setSubTab('chunks')}>
-              <Icons.Layers /> Chunks
-            </button>
-            <button className={`sub-tab ${subTab === 'metadata' ? 'active' : ''}`} onClick={() => setSubTab('metadata')}>
-              <Icons.Database /> Metadata
-            </button>
-            <button className={`sub-tab ${subTab === 'hex' ? 'active' : ''}`} onClick={() => setSubTab('hex')}>
-              <Icons.Binary /> Hex
-            </button>
+        <div className="sidebar-list">
+          {files.length === 0 ? (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>
+              No files loaded yet.<br/>Drop files or click Open.
+            </div>
+          ) : (
+            files.map((file, i) => (
+              <div 
+                key={i} 
+                className={`file-item ${selectedFile?.path === file.path ? 'active' : ''}`}
+                onClick={() => onSelectFile(file)}
+              >
+                <div className="file-item-icon">
+                  <Icons.File />
+                </div>
+                <div className="file-item-info">
+                  <div className="file-item-name">{file.name}</div>
+                  <div className="file-item-meta">{formatBytes(file.size)} • {file.format}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+      
+      <div className="content">
+        {!selectedFile ? (
+          <div
+            className={`dropzone ${dragActive ? 'active' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="dropzone-icon">
+              <Icons.Upload />
+            </div>
+            <div className="dropzone-text">Drop .aif-bin files here to inspect</div>
+            <div className="dropzone-hint">or click to browse your files</div>
           </div>
-          
-          {subTab === 'overview' && <OverviewPanel file={selectedFile} />}
-          {subTab === 'source' && <SourcePanel file={selectedFile} onToast={onToast} />}
-          {subTab === 'chunks' && <ChunksPanel file={selectedFile} />}
-          {subTab === 'metadata' && <MetadataPanel file={selectedFile} />}
-          {subTab === 'hex' && <HexPanel file={selectedFile} />}
-        </>
-      )}
+        ) : (
+          <>
+            <div className="sub-tabs">
+              <button className={`sub-tab ${subTab === 'overview' ? 'active' : ''}`} onClick={() => setSubTab('overview')}>
+                <Icons.Info /> Overview
+              </button>
+              <button className={`sub-tab ${subTab === 'source' ? 'active' : ''}`} onClick={() => setSubTab('source')}>
+                <Icons.FileText /> Source
+              </button>
+              <button className={`sub-tab ${subTab === 'chunks' ? 'active' : ''}`} onClick={() => setSubTab('chunks')}>
+                <Icons.Layers /> Chunks
+              </button>
+              <button className={`sub-tab ${subTab === 'metadata' ? 'active' : ''}`} onClick={() => setSubTab('metadata')}>
+                <Icons.Database /> Metadata
+              </button>
+              <button className={`sub-tab ${subTab === 'hex' ? 'active' : ''}`} onClick={() => setSubTab('hex')}>
+                <Icons.Binary /> Hex
+              </button>
+            </div>
+            
+            {subTab === 'overview' && <OverviewPanel file={selectedFile} />}
+            {subTab === 'source' && <SourcePanel file={selectedFile} onToast={onToast} />}
+            {subTab === 'chunks' && <ChunksPanel file={selectedFile} />}
+            {subTab === 'metadata' && <MetadataPanel file={selectedFile} />}
+            {subTab === 'hex' && <HexPanel file={selectedFile} />}
+          </>
+        )}
+      </div>
     </div>
   );
 };
@@ -1883,16 +1768,9 @@ interface ConvertedFile {
   name: string;
   blob: Blob;
   size: number;
-  data?: Uint8Array;
 }
 
-const IngestorTab: React.FC<{ 
-  providers: ProviderConfig[]; 
-  onToast: (msg: string, type: 'success' | 'error') => void;
-  onFilesIngested?: (files: AifBinFile[]) => void;
-  saveToLibrary?: (name: string, data: Uint8Array) => Promise<boolean>;
-  isDesktop?: boolean;
-}> = ({ providers, onToast, onFilesIngested, saveToLibrary: saveToLib, isDesktop }) => {
+const IngestorTab: React.FC<{ providers: ProviderConfig[]; onToast: (msg: string, type: 'success' | 'error') => void }> = ({ providers, onToast }) => {
   const [files, setFiles] = useState<IngestFile[]>([]);
   const [provider, setProvider] = useState('none');
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
@@ -2148,18 +2026,10 @@ const IngestorTab: React.FC<{
           ));
         }
         
-        // Get the binary data
-        const blobData = new Uint8Array(await blob.arrayBuffer());
+        converted.push({ name: outputName, blob, size: blob.size });
         
-        converted.push({ name: outputName, blob, size: blob.size, data: blobData });
-        
-        // Save to library if in desktop mode
-        if (isDesktop && saveToLib) {
-          await saveToLib(outputName, blobData);
-        }
-        
-        // Auto-download if enabled (browser mode or user preference)
-        if (autoDownload && !isDesktop) {
+        // Auto-download if enabled
+        if (autoDownload) {
           downloadFile(blob, outputName);
         }
         
@@ -2182,27 +2052,7 @@ const IngestorTab: React.FC<{
     
     setConvertedFiles(converted);
     setStatus('done');
-    
-    // Notify parent of new files (for library sidebar)
-    if (onFilesIngested && converted.length > 0) {
-      const ingestedFiles: AifBinFile[] = [];
-      for (const cf of converted) {
-        if (cf.data) {
-          const parsed = await parseAifBinV2(cf.data);
-          ingestedFiles.push({
-            path: cf.name,
-            name: cf.name,
-            size: cf.size,
-            rawBytes: cf.data,
-            ...parsed,
-          });
-        }
-      }
-      onFilesIngested(ingestedFiles);
-    }
-    
-    const savedTo = isDesktop ? 'library' : 'downloads';
-    onToast(`Converted ${converted.length} file(s) to AIF-BIN (${savedTo})`, 'success');
+    onToast(`Converted ${converted.length} file(s) to AIF-BIN`, 'success');
   };
 
   const downloadAllConverted = () => {
@@ -2494,306 +2344,6 @@ const SearchTab: React.FC<{ onToast: (msg: string, type: 'success' | 'error') =>
   );
 };
 
-// ============================================================
-// AI Chat Sidebar
-// ============================================================
-
-interface ChatMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  actions?: Array<{ type: string; filename?: string }>;
-}
-
-const AIChatSidebar: React.FC<{
-  files: AifBinFile[];
-  providers: ProviderConfig[];
-  onHighlightFile: (filename: string) => void;
-  onCreateFile: (name: string, content: string) => Promise<void>;
-  onRenameFile: (oldName: string, newName: string) => Promise<boolean>;
-  onClearHighlights: () => void;
-  hasHighlights: boolean;
-  onToast: (msg: string, type: 'success' | 'error') => void;
-}> = ({ files, providers, onHighlightFile, onCreateFile, onRenameFile, onClearHighlights, hasHighlights, onToast }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Get configured providers
-  const configuredProviders = providers.filter(p => p.configured);
-
-  // Auto-select first configured provider
-  useEffect(() => {
-    if (!selectedProvider && configuredProviders.length > 0) {
-      setSelectedProvider(configuredProviders[0].id);
-    }
-  }, [configuredProviders, selectedProvider]);
-
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-    if (!selectedProvider) {
-      onToast('Please configure an AI provider in Settings', 'error');
-      return;
-    }
-
-    const provider = providers.find(p => p.id === selectedProvider);
-    if (!provider) return;
-
-    const userMessage: ChatMessage = {
-      id: Date.now(),
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      // Dynamic import to avoid issues in browser-only mode
-      const aiProvider = await import('./lib/ai-provider');
-      
-      // Build message history
-      const aiMessages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
-      aiMessages.push({ role: 'user', content: userMessage.content });
-
-      // Call AI
-      const response = await aiProvider.callAI(provider, aiMessages, files);
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // Process actions
-      for (const action of response.actions) {
-        if (action.type === 'highlight' && action.filename) {
-          onHighlightFile(action.filename);
-        } else if (action.type === 'create' && action.filename && action.content) {
-          await onCreateFile(action.filename, action.content);
-        } else if (action.type === 'rename' && action.filename && action.newFilename) {
-          const success = await onRenameFile(action.filename, action.newFilename);
-          if (!success) {
-            onToast(`Failed to rename: ${action.filename}`, 'error');
-          }
-        }
-      }
-
-      const assistantMessage: ChatMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: response.content,
-        timestamp: new Date(),
-        actions: response.actions,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: any) {
-      console.error('AI Chat error:', err);
-      onToast(`AI Error: ${err.message}`, 'error');
-      
-      // Add error message
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: `Sorry, I encountered an error: ${err.message}`,
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const clearChat = () => {
-    setMessages([]);
-  };
-
-  // Focus input after sending
-  useEffect(() => {
-    if (!isLoading && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isLoading]);
-
-  return (
-    <div className="sidebar" style={{ borderLeft: '1px solid var(--border-subtle)', borderRight: 'none' }}>
-      <div className="sidebar-header">
-        <div className="sidebar-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 14, height: 14 }}><Icons.Cpu /></span> AI Assistant</span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {hasHighlights && (
-              <button 
-                className="btn btn-sm" 
-                onClick={onClearHighlights}
-                style={{ padding: '4px 8px', fontSize: 10, background: 'var(--accent-cyan)', color: 'white', border: 'none', borderRadius: 4 }}
-                title="Clear highlighted files"
-              >
-                Clear Results
-              </button>
-            )}
-            {messages.length > 0 && (
-              <button 
-                className="btn btn-sm" 
-                onClick={clearChat}
-                style={{ padding: '4px 8px', fontSize: 10, background: 'transparent', border: 'none', color: 'var(--text-tertiary)' }}
-                title="Clear chat"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Provider selector */}
-        {configuredProviders.length > 0 ? (
-          <select
-            className="select"
-            value={selectedProvider}
-            onChange={(e) => setSelectedProvider(e.target.value)}
-            style={{ width: '100%', fontSize: 11, marginBottom: 8 }}
-          >
-            {configuredProviders.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        ) : (
-          <div style={{ fontSize: 11, color: 'var(--accent-amber)', marginBottom: 8, padding: 8, background: 'var(--bg-panel)', borderRadius: 6 }}>
-            <span style={{ width: 12, height: 12, display: 'inline-block' }}><Icons.AlertCircle /></span> Configure an AI provider in Settings
-          </div>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="sidebar-list" style={{ flex: 1, padding: 8 }}>
-        {messages.length === 0 ? (
-          <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>
-            <div style={{ marginBottom: 8, width: 20, height: 20, margin: '0 auto 8px' }}><Icons.Search /></div>
-            <div>Ask about your files</div>
-            <div style={{ marginTop: 8, fontSize: 11 }}>
-              Try: "Summarize all documents" or "Find property deeds"
-            </div>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              style={{
-                marginBottom: 12,
-                padding: 10,
-                borderRadius: 8,
-                background: msg.role === 'user' ? 'var(--bg-elevated)' : 'var(--bg-panel)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div style={{ 
-                fontSize: 10, 
-                color: 'var(--text-tertiary)', 
-                marginBottom: 4,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {msg.role === 'user' ? <><span style={{ width: 10, height: 10 }}><Icons.Eye /></span> You</> : <><span style={{ width: 10, height: 10 }}><Icons.Cpu /></span> Assistant</>}
-                </span>
-                <span>{msg.timestamp.toLocaleTimeString()}</span>
-              </div>
-              <div style={{ 
-                fontSize: 13, 
-                lineHeight: 1.5, 
-                whiteSpace: 'pre-wrap',
-                color: 'var(--text-primary)'
-              }}>
-                {msg.content}
-              </div>
-              {msg.actions && msg.actions.length > 0 && (
-                <div style={{ marginTop: 8, fontSize: 11 }}>
-                  {msg.actions.map((a, i) => (
-                    <span 
-                      key={i} 
-                      style={{ 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        padding: '2px 6px', 
-                        background: a.type === 'create' ? 'var(--accent-emerald)' : 'var(--accent-cyan)',
-                        color: 'white',
-                        borderRadius: 4,
-                        marginRight: 4,
-                        marginTop: 4,
-                      }}
-                    >
-                      {a.type === 'create' && <><span style={{ width: 10, height: 10 }}><Icons.File /></span> Created: {a.filename}</>}
-                      {a.type === 'highlight' && <><span style={{ width: 10, height: 10 }}><Icons.Search /></span> Found: {a.filename}</>}
-                      {a.type === 'rename' && <><span style={{ width: 10, height: 10 }}><Icons.Save /></span> Renamed: {a.filename} → {a.newFilename}</>}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))
-        )}
-        {isLoading && (
-          <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-tertiary)' }}>
-            <div style={{ fontSize: 13 }}>Thinking...</div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div style={{ padding: 8, borderTop: '1px solid var(--border-subtle)' }}>
-        <textarea
-          ref={inputRef}
-          className="input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={configuredProviders.length > 0 ? "Ask about your files..." : "Configure AI in Settings"}
-          disabled={isLoading || configuredProviders.length === 0}
-          style={{ 
-            width: '100%',
-            resize: 'none', 
-            minHeight: 60, 
-            fontSize: 12,
-            fontFamily: 'var(--font-sans)'
-          }}
-        />
-        <button
-          className="btn btn-primary"
-          onClick={handleSend}
-          disabled={isLoading || !input.trim() || configuredProviders.length === 0}
-          style={{ width: '100%', marginTop: 4, fontSize: 11 }}
-        >
-          {isLoading ? 'Thinking...' : 'Send'}
-        </button>
-        <div style={{ marginTop: 4, fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center' }}>
-          {files.length} file(s) in context
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Settings Tab
 const SettingsTab: React.FC<{ providers: ProviderConfig[]; onUpdateProvider: (id: string, apiKey: string) => void; onToast: (msg: string, type: 'success' | 'error') => void }> = ({ providers, onUpdateProvider, onToast }) => {
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
@@ -2884,7 +2434,7 @@ const SettingsTab: React.FC<{ providers: ProviderConfig[]; onUpdateProvider: (id
       
       <div className="panel">
         <div className="panel-header">
-          <div className="panel-title"><Icons.Info /> About AIF-BIN Studio</div>
+          <div className="panel-title"><Icons.Info /> About AIF-BIN Pro</div>
         </div>
         <div className="data-row">
           <div className="data-label">Version</div>
@@ -2896,7 +2446,7 @@ const SettingsTab: React.FC<{ providers: ProviderConfig[]; onUpdateProvider: (id
         </div>
         <div className="data-row">
           <div className="data-label">License</div>
-          <div className="data-value">Commercial</div>
+          <div className="data-value">MIT License</div>
         </div>
       </div>
     </div>
@@ -2913,92 +2463,7 @@ const App: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<AifBinFile | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [libraryPath, setLibraryPath] = useState<string>('');
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  // Load library files on startup (Tauri only)
-  useEffect(() => {
-    const loadLibrary = async () => {
-      if (!isTauri()) {
-        console.log('Running in browser mode (no local library)');
-        return;
-      }
-      
-      setIsDesktop(true);
-      
-      try {
-        // Get library path for display
-        const path = await getLibraryFolder();
-        setLibraryPath(path);
-        console.log('Library folder:', path);
-        
-        // Load all files from library
-        const libraryFiles = await listLibrary();
-        console.log(`Found ${libraryFiles.length} files in library`);
-        
-        // Load each file's content
-        const loadedFiles: AifBinFile[] = [];
-        for (const libFile of libraryFiles) {
-          try {
-            const bytes = await readFromLibrary(libFile.name);
-            const parsed = await parseAifBinV2(bytes);
-            loadedFiles.push({
-              path: libFile.name,
-              name: libFile.name,
-              size: libFile.size,
-              rawBytes: bytes,
-              ...parsed,
-            });
-          } catch (err) {
-            console.error(`Failed to load ${libFile.name}:`, err);
-          }
-        }
-        
-        setFiles(loadedFiles);
-        if (loadedFiles.length > 0) {
-          setSelectedFile(loadedFiles[0]);
-        }
-      } catch (err) {
-        console.error('Failed to load library:', err);
-      }
-    };
-    
-    loadLibrary();
-  }, []);
-
-  // Save file to library (Tauri only)
-  const saveFileToLibrary = useCallback(async (name: string, data: Uint8Array): Promise<boolean> => {
-    if (!isTauri()) {
-      console.log('Browser mode: skipping library save');
-      return false;
-    }
-    
-    try {
-      await saveToLibrary(name, data);
-      console.log(`Saved to library: ${name}`);
-      return true;
-    } catch (err) {
-      console.error(`Failed to save ${name} to library:`, err);
-      return false;
-    }
-  }, []);
-
-  // Delete file from library
-  const deleteFileFromLibrary = useCallback(async (name: string): Promise<boolean> => {
-    if (!isTauri()) return false;
-    
-    try {
-      await deleteFromLibrary(name);
-      setFiles(prev => prev.filter(f => f.name !== name));
-      if (selectedFile?.name === name) {
-        setSelectedFile(null);
-      }
-      return true;
-    } catch (err) {
-      console.error(`Failed to delete ${name}:`, err);
-      return false;
-    }
-  }, [selectedFile]);
+  const [toastId, setToastId] = useState(0);
   
   // Load providers from localStorage
   const [providers, setProviders] = useState<ProviderConfig[]>(() => {
@@ -3012,12 +2477,13 @@ const App: React.FC = () => {
   });
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
-    const id = Date.now() + Math.random(); // Unique ID
+    const id = toastId;
+    setToastId(prev => prev + 1);
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
-  }, []);
+  }, [toastId]);
 
   const removeToast = (id: number) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -3041,147 +2507,6 @@ const App: React.FC = () => {
     saveSettings(settings);
   };
 
-  // State for highlighted files
-  const [highlightedFiles, setHighlightedFiles] = useState<Set<string>>(new Set());
-
-  // Clear all highlights
-  const clearHighlights = useCallback(() => {
-    setHighlightedFiles(new Set());
-  }, []);
-
-  // Highlight a file (bring to top, add glow) - persists until cleared
-  const handleHighlightFile = useCallback((filename: string) => {
-    // Find the file
-    const file = files.find(f => f.name.toLowerCase().includes(filename.toLowerCase()));
-    if (file) {
-      // Add to highlighted set
-      setHighlightedFiles(prev => new Set([...prev, file.name]));
-      
-      // Move file to top of list
-      setFiles(prev => {
-        const index = prev.findIndex(f => f.name === file.name);
-        if (index > 0) {
-          const newFiles = [...prev];
-          const [removed] = newFiles.splice(index, 1);
-          newFiles.unshift(removed);
-          return newFiles;
-        }
-        return prev;
-      });
-    }
-  }, [files]);
-
-  // Create a new .aif-bin file from AI-generated content
-  const handleCreateFileFromAI = useCallback(async (filename: string, content: string) => {
-    // Ensure filename ends with .aif-bin
-    const name = filename.endsWith('.aif-bin') ? filename : `${filename}.aif-bin`;
-    
-    // Create metadata
-    const metadata = {
-      version: '2.0.0',
-      format: 'aif-bin',
-      created: new Date().toISOString(),
-      source: 'AI Generated',
-      originalName: name,
-      originalSize: content.length,
-      mimeType: 'text/plain',
-      convertedAt: new Date().toISOString(),
-      provider: 'ai-assistant',
-      extractionMethod: 'ai-generated',
-      entities: {
-        dates: (content.match(/\d{4}-\d{2}-\d{2}/g) || []).slice(0, 10),
-      },
-    };
-    
-    // Create chunks
-    const chunks = [{
-      label: 'AI Generated Content',
-      type: 'text',
-      content: content,
-    }];
-    
-    // Encode to v2 binary
-    const v2Binary = encodeAifBinV2({ metadata, rawContent: content, chunks });
-    
-    // Always save to library (desktop mode saves to folder, browser mode downloads)
-    if (isDesktop) {
-      await saveFileToLibrary(name, v2Binary);
-    } else {
-      // Browser mode: auto-download the file
-      const blob = new Blob([v2Binary], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-    
-    // Parse and add to files list
-    const parsed = await parseAifBinV2(v2Binary);
-    const newFile: AifBinFile = {
-      path: name,
-      name: name,
-      size: v2Binary.length,
-      rawBytes: v2Binary,
-      ...parsed,
-    };
-    
-    // Add to files and select it
-    setFiles(prev => [newFile, ...prev]);
-    setSelectedFile(newFile);
-    setActiveTab('inspector');
-    
-    // Highlight the new file (persists until cleared)
-    setHighlightedFiles(prev => new Set([...prev, name]));
-  }, [isDesktop, saveFileToLibrary]);
-
-  // Rename a file in the library
-  const handleRenameFile = useCallback(async (oldName: string, newName: string): Promise<boolean> => {
-    // Ensure newName ends with .aif-bin
-    const newFileName = newName.endsWith('.aif-bin') ? newName : `${newName}.aif-bin`;
-    
-    // Find the file
-    const file = files.find(f => f.name.toLowerCase().includes(oldName.toLowerCase().replace('.aif-bin', '')));
-    if (!file) {
-      console.error(`File not found: ${oldName}`);
-      return false;
-    }
-    
-    // Rename in library (Tauri only)
-    if (isDesktop) {
-      try {
-        const { renameInLibrary } = await import('./lib/library');
-        await renameInLibrary(file.name, newFileName);
-      } catch (err) {
-        console.error(`Failed to rename ${file.name}:`, err);
-        return false;
-      }
-    }
-    
-    // Update file in state
-    setFiles(prev => prev.map(f => 
-      f.name === file.name 
-        ? { ...f, name: newFileName, path: newFileName }
-        : f
-    ));
-    
-    // Update selected file if it was renamed
-    if (selectedFile?.name === file.name) {
-      setSelectedFile(prev => prev ? { ...prev, name: newFileName, path: newFileName } : null);
-    }
-    
-    // Highlight the renamed file
-    setHighlightedFiles(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(file.name);
-      newSet.add(newFileName);
-      return newSet;
-    });
-    
-    return true;
-  }, [files, selectedFile, isDesktop]);
-
   return (
     <>
       <style>{styles}</style>
@@ -3189,59 +2514,28 @@ const App: React.FC = () => {
         <TitleBar onOpenSettings={() => setActiveTab('settings')} />
         <Tabs active={activeTab} onChange={setActiveTab} />
         
-        {/* Main layout with persistent sidebars */}
-        <div className="main">
-          {/* Left: Persistent Library Sidebar */}
-          <LibrarySidebar
-            files={files}
+        {activeTab === 'inspector' && (
+          <InspectorTab 
+            files={files} 
             selectedFile={selectedFile}
-            onSelectFile={(file) => {
-              setSelectedFile(file);
-              setActiveTab('inspector'); // Auto-switch to inspector when file selected
-            }}
+            onSelectFile={setSelectedFile}
             onFilesAdded={handleFilesAdded}
-            onDeleteFile={deleteFileFromLibrary}
-            isDesktop={isDesktop}
-            libraryPath={libraryPath}
-            highlightedFiles={highlightedFiles}
-          />
-          
-          {/* Center: Tab Content */}
-          {activeTab === 'inspector' && (
-            <InspectorTab 
-              selectedFile={selectedFile}
-              onToast={showToast}
-            />
-          )}
-          {activeTab === 'ingestor' && (
-            <IngestorTab 
-              providers={providers} 
-              onToast={showToast}
-              onFilesIngested={handleFilesAdded}
-              saveToLibrary={saveFileToLibrary}
-              isDesktop={isDesktop}
-            />
-          )}
-          {activeTab === 'settings' && (
-            <SettingsTab 
-              providers={providers} 
-              onUpdateProvider={handleUpdateProvider}
-              onToast={showToast}
-            />
-          )}
-          
-          {/* Right: AI Chat Sidebar */}
-          <AIChatSidebar
-            files={files}
-            providers={providers}
-            onHighlightFile={handleHighlightFile}
-            onCreateFile={handleCreateFileFromAI}
-            onRenameFile={handleRenameFile}
-            onClearHighlights={clearHighlights}
-            hasHighlights={highlightedFiles.size > 0}
             onToast={showToast}
           />
-        </div>
+        )}
+        {activeTab === 'ingestor' && (
+          <IngestorTab providers={providers} onToast={showToast} />
+        )}
+        {activeTab === 'search' && (
+          <SearchTab onToast={showToast} />
+        )}
+        {activeTab === 'settings' && (
+          <SettingsTab 
+            providers={providers} 
+            onUpdateProvider={handleUpdateProvider}
+            onToast={showToast}
+          />
+        )}
         
         <StatusBar fileCount={files.length} message={statusMessage} providers={providers} />
         <ToastContainer toasts={toasts} onRemove={removeToast} />

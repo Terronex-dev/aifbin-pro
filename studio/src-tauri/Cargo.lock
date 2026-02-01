@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "aifbin-studio"
+name = "aifbin-pro"
 version = "1.0.0"
 dependencies = [
  "dirs 5.0.1",

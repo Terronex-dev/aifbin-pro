@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "AIF-BIN Studio",
+  "productName": "AIF-BIN Pro",
   "version": "1.0.0",
-  "identifier": "dev.terronex.aifbin-studio",
+  "identifier": "dev.terronex.aifbin-pro",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AIF-BIN Studio",
+        "title": "AIF-BIN Pro",
         "width": 1400,
         "height": 900,
         "minWidth": 1000,

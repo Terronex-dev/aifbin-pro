@@ -1,10 +1,10 @@
 [package]
-name = "aifbin-studio"
+name = "aifbin-pro"
 version = "1.0.0"
-description = "AIF-BIN Studio - Intelligent Document Memory System"
+description = "AIF-BIN Pro - Intelligent Document Memory System"
 authors = ["Terronex.dev"]
 license = "MIT"
-repository = "https://github.com/terronexdev/aifbin-studio"
+repository = "https://github.com/terronexdev/aifbin-pro"
 edition = "2021"
 rust-version = "1.77.2"
 

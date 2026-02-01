@@ -1,7 +1,7 @@
 {
-  "name": "aifbin-studio",
+  "name": "aifbin-pro",
   "version": "1.0.0",
-  "description": "AIF-BIN Studio — Intelligent Document Memory System",
+  "description": "AIF-BIN Pro — Intelligent Document Memory System",
   "type": "module",
   "scripts": {
     "dev": "vite",
