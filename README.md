@@ -1,6 +1,10 @@
 # AIF-BIN Pro
 
-**AI-Native File Format** — Professional toolkit for semantic search, batch processing, and visual inspection.
+**AI Formatted - Binary** — Professional toolkit for semantic search, batch processing, and visual inspection.
+
+**AIF-BIN** = AI Formatted - Binary | **AIMF** = AI Memory Format
+
+Both `.aif-bin` and `.aimf` extensions are synonymous and fully interchangeable.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -9,7 +13,7 @@
 
 ## What is AIF-BIN?
 
-AIF-BIN is a binary file format that makes any document AI-native. A single `.aif-bin` file contains:
+AIF-BIN (AI Formatted - Binary), also known as AIMF (AI Memory Format), is a binary file format that makes any document AI-native. A single `.aif-bin` or `.aimf` file contains:
 
 - **Original document** — The source file preserved
 - **Extracted content** — Text, tables, code blocks
