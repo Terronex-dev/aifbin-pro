@@ -13,12 +13,12 @@
 AIF-BIN Pro is a command-line tool for converting documents into searchable AI memory files. It generates real vector embeddings for semantic search — find content by meaning, not just keywords.
 
 **Key Features:**
-- 🔍 **Semantic Search** — Query your documents by meaning
-- 🧠 **Real Embeddings** — 384/768-dimension vectors with 5 model options
-- ⚡ **Batch Processing** — Parallel conversion of entire directories
-- 👁️ **Watch Mode** — Auto-sync on file changes
-- 🤖 **AI Extraction** — Use Claude, GPT-4, Gemini, or Ollama for intelligent parsing
-- 📤 **Multiple Exports** — JSON, CSV, Markdown, HTML
+- **Semantic Search** — Query your documents by meaning
+- **Real Embeddings** — 384/768-dimension vectors with 5 model options
+- **Batch Processing** — Parallel conversion of entire directories
+- **Watch Mode** — Auto-sync on file changes
+- **AI Extraction** — Use Claude, GPT-4, Gemini, or Ollama for intelligent parsing
+- **Multiple Exports** — JSON, CSV, Markdown, HTML
 
 ---
 
@@ -257,11 +257,11 @@ python3 cli/aifbin_pro.py ingest documents/ -o memories/ -p ollama
 
 | Model | Dimensions | Speed | Description |
 |-------|------------|-------|-------------|
-| `minilm` | 384 | ⚡ Fast | Good quality (default) |
-| `mpnet` | 768 | 🐢 Slow | Higher quality |
-| `bge-small` | 384 | ⚡ Fast | Optimized for retrieval |
-| `bge-base` | 768 | 🐢 Slow | Best quality retrieval |
-| `e5-small` | 384 | ⚡ Fast | Microsoft E5 |
+| `minilm` | 384 | Fast | Good quality (default) |
+| `mpnet` | 768 | Slow | Higher quality |
+| `bge-small` | 384 | Fast | Optimized for retrieval |
+| `bge-base` | 768 | Slow | Best quality retrieval |
+| `e5-small` | 384 | Fast | Microsoft E5 |
 
 List available models:
 
