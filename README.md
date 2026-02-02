@@ -139,13 +139,13 @@ python3 cli/aifbin_pro.py extract output/sample.aif-bin
 python cli/aifbin_pro.py migrate document.md -o output/
 
 # Entire directory
-python cli/aifbin_pro.py migrate notes/ -o memories/
+python cli/aifbin_pro.py migrate notes/ -o output/
 
 # Recursive with parallel processing
-python cli/aifbin_pro.py migrate notes/ -o memories/ -r -p
+python cli/aifbin_pro.py migrate notes/ -o output/ -r -p
 
 # Use a different embedding model
-python cli/aifbin_pro.py migrate notes/ -o memories/ -m bge-small
+python cli/aifbin_pro.py migrate notes/ -o output/ -m bge-small
 ```
 
 **Linux / macOS / WSL:**
@@ -154,13 +154,13 @@ python cli/aifbin_pro.py migrate notes/ -o memories/ -m bge-small
 python3 cli/aifbin_pro.py migrate document.md -o output/
 
 # Entire directory
-python3 cli/aifbin_pro.py migrate notes/ -o memories/
+python3 cli/aifbin_pro.py migrate notes/ -o output/
 
 # Recursive with parallel processing
-python3 cli/aifbin_pro.py migrate notes/ -o memories/ -r -p
+python3 cli/aifbin_pro.py migrate notes/ -o output/ -r -p
 
 # Use a different embedding model
-python3 cli/aifbin_pro.py migrate notes/ -o memories/ -m bge-small
+python3 cli/aifbin_pro.py migrate notes/ -o output/ -m bge-small
 ```
 
 ### Search (Semantic Query)
@@ -168,25 +168,25 @@ python3 cli/aifbin_pro.py migrate notes/ -o memories/ -m bge-small
 **Windows:**
 ```powershell
 # Basic search
-python cli/aifbin_pro.py search "budget decisions" -d memories/
+python cli/aifbin_pro.py search "budget decisions" -d output/
 
 # Get more results
-python cli/aifbin_pro.py search "project timeline" -d memories/ -k 10
+python cli/aifbin_pro.py search "project timeline" -d output/ -k 10
 
 # Filter by date
-python cli/aifbin_pro.py search "meeting notes" -d memories/ --after 2026-01-01
+python cli/aifbin_pro.py search "meeting notes" -d output/ --after 2026-01-01
 ```
 
 **Linux / macOS / WSL:**
 ```bash
 # Basic search
-python3 cli/aifbin_pro.py search "budget decisions" -d memories/
+python3 cli/aifbin_pro.py search "budget decisions" -d output/
 
 # Get more results
-python3 cli/aifbin_pro.py search "project timeline" -d memories/ -k 10
+python3 cli/aifbin_pro.py search "project timeline" -d output/ -k 10
 
 # Filter by date
-python3 cli/aifbin_pro.py search "meeting notes" -d memories/ --after 2026-01-01
+python3 cli/aifbin_pro.py search "meeting notes" -d output/ --after 2026-01-01
 ```
 
 ### Watch (Auto-Sync)
@@ -194,19 +194,19 @@ python3 cli/aifbin_pro.py search "meeting notes" -d memories/ --after 2026-01-01
 **Windows:**
 ```powershell
 # Watch a directory and auto-convert changes
-python cli/aifbin_pro.py watch notes/ -o memories/
+python cli/aifbin_pro.py watch notes/ -o output/
 
 # Custom check interval (seconds)
-python cli/aifbin_pro.py watch notes/ -o memories/ -i 10
+python cli/aifbin_pro.py watch notes/ -o output/ -i 10
 ```
 
 **Linux / macOS / WSL:**
 ```bash
 # Watch a directory and auto-convert changes
-python3 cli/aifbin_pro.py watch notes/ -o memories/
+python3 cli/aifbin_pro.py watch notes/ -o output/
 
 # Custom check interval (seconds)
-python3 cli/aifbin_pro.py watch notes/ -o memories/ -i 10
+python3 cli/aifbin_pro.py watch notes/ -o output/ -i 10
 ```
 
 ### Export (Convert to Other Formats)
@@ -235,10 +235,10 @@ python3 cli/aifbin_pro.py export file.aif-bin -o output.html -f html
 python cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
 
 # Ingest files with AI extraction
-python cli/aifbin_pro.py ingest documents/ -o memories/ -p anthropic
+python cli/aifbin_pro.py ingest documents/ -o output/ -p anthropic
 
 # Use local Ollama (no API key needed)
-python cli/aifbin_pro.py ingest documents/ -o memories/ -p ollama
+python cli/aifbin_pro.py ingest documents/ -o output/ -p ollama
 ```
 
 **Linux / macOS / WSL:**
@@ -247,10 +247,10 @@ python cli/aifbin_pro.py ingest documents/ -o memories/ -p ollama
 python3 cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
 
 # Ingest files with AI extraction
-python3 cli/aifbin_pro.py ingest documents/ -o memories/ -p anthropic
+python3 cli/aifbin_pro.py ingest documents/ -o output/ -p anthropic
 
 # Use local Ollama (no API key needed)
-python3 cli/aifbin_pro.py ingest documents/ -o memories/ -p ollama
+python3 cli/aifbin_pro.py ingest documents/ -o output/ -p ollama
 ```
 
 ---
