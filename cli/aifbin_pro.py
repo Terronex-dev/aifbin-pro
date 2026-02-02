@@ -623,6 +623,9 @@ def cmd_info(args):
 def cmd_extract(args):
     """Extract original content from an AIF-BIN file."""
     filepath = Path(args.file)
+    if not filepath.exists():
+        print_error(f"File not found: {filepath}")
+        return
     data = load_aifbin(str(filepath))
     
     if data.get('original_raw'):

@@ -75,36 +75,38 @@ python cli/aifbin_pro.py --help
 
 ## Quick Start
 
+A `sample.md` file is included for testing.
+
 ### Windows
 
 ```powershell
-# Convert a markdown file to AIF-BIN with embeddings
-python cli/aifbin_pro.py migrate notes/meeting.md -o memories/
+# Convert the sample file to AIF-BIN with embeddings
+python cli/aifbin_pro.py migrate sample.md -o output/
 
 # Search your memories semantically
-python cli/aifbin_pro.py search "project decisions" -d memories/
+python cli/aifbin_pro.py search "project decisions" -d output/
 
 # View file info
-python cli/aifbin_pro.py info memories/meeting.aif-bin
+python cli/aifbin_pro.py info output/sample.aif-bin
 
 # Extract original content
-python cli/aifbin_pro.py extract memories/meeting.aif-bin
+python cli/aifbin_pro.py extract output/sample.aif-bin
 ```
 
 ### Linux / macOS / WSL
 
 ```bash
-# Convert a markdown file to AIF-BIN with embeddings
-python3 cli/aifbin_pro.py migrate notes/meeting.md -o memories/
+# Convert the sample file to AIF-BIN with embeddings
+python3 cli/aifbin_pro.py migrate sample.md -o output/
 
 # Search your memories semantically
-python3 cli/aifbin_pro.py search "project decisions" -d memories/
+python3 cli/aifbin_pro.py search "project decisions" -d output/
 
 # View file info
-python3 cli/aifbin_pro.py info memories/meeting.aif-bin
+python3 cli/aifbin_pro.py info output/sample.aif-bin
 
 # Extract original content
-python3 cli/aifbin_pro.py extract memories/meeting.aif-bin
+python3 cli/aifbin_pro.py extract output/sample.aif-bin
 ```
 
 ---
