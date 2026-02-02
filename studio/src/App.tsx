@@ -955,7 +955,7 @@ interface AifBinFile {
   source?: string;
   sourceContent?: string;
   model?: string;
-  chunks?: Array<{ label: string; type: string; content: string }>;
+  chunks?: Array<{ label: string; type: string; content: string; embedding?: number[] }>;
   entities?: Record<string, string[]>;
   metadata?: Record<string, any>;
   hasRaw?: boolean;
@@ -1103,7 +1103,7 @@ async function parseAifBinV2(bytes: Uint8Array): Promise<Partial<AifBinFile>> {
       if (chunksOffset < bytes.length) {
         const chunkCount = view.getUint32(chunksOffset, true);
         let pos = chunksOffset + 4;
-        const parsedChunks: Array<{ label: string; type: string; content: string }> = [];
+        const parsedChunks: Array<{ label: string; type: string; content: string; embedding?: number[] }> = [];
         
         for (let i = 0; i < chunkCount && pos < bytes.length; i++) {
           const chunkType = view.getUint32(pos, true);
@@ -1113,14 +1113,19 @@ async function parseAifBinV2(bytes: Uint8Array): Promise<Partial<AifBinFile>> {
           
           let label = `Chunk ${i + 1}`;
           let type = 'text';
+          let embedding: number[] | undefined;
           
-          // Decode chunk metadata
+          // Decode chunk metadata (includes embedding if present)
           if (metaLen > 0 && pos + metaLen <= bytes.length) {
             try {
               const { decode } = await import('@msgpack/msgpack');
               const chunkMeta = decode(bytes.slice(pos, pos + metaLen)) as Record<string, any>;
               label = chunkMeta.label || label;
               type = chunkMeta.type || type;
+              // Extract embedding if present
+              if (chunkMeta.embedding && Array.isArray(chunkMeta.embedding)) {
+                embedding = chunkMeta.embedding;
+              }
             } catch {}
           }
           pos += metaLen;
@@ -1132,7 +1137,7 @@ async function parseAifBinV2(bytes: Uint8Array): Promise<Partial<AifBinFile>> {
           }
           pos += dataLen;
           
-          parsedChunks.push({ label, type, content });
+          parsedChunks.push({ label, type, content, embedding });
         }
         
         result.chunks = parsedChunks;

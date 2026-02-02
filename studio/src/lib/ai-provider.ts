@@ -1,7 +1,15 @@
 /**
  * AI Provider Router
  * Routes requests to the configured AI provider (Anthropic, OpenAI, Gemini, Ollama)
+ * Now with semantic search support using embeddings!
  */
+
+import { 
+  initEmbeddings, 
+  generateEmbedding, 
+  cosineSimilarity, 
+  isReady as isEmbeddingsReady 
+} from './embeddings';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
@@ -273,15 +281,150 @@ export function buildContext(files: Array<{ name: string; sourceContent?: string
 }
 
 /**
+ * Semantic search across files using embeddings
+ * Returns the most relevant chunks based on the query
+ */
+export async function semanticSearchFiles(
+  query: string,
+  files: Array<{ 
+    name: string; 
+    sourceContent?: string; 
+    chunks?: Array<{ content: string; embedding?: number[]; label?: string }>;
+  }>,
+  topK: number = 5
+): Promise<Array<{ filename: string; content: string; score: number; label?: string }>> {
+  // Initialize embeddings if needed
+  if (!isEmbeddingsReady()) {
+    try {
+      await initEmbeddings('minilm');
+    } catch (err) {
+      console.error('Failed to init embeddings for search:', err);
+      return []; // Fall back to regular context
+    }
+  }
+
+  // Generate query embedding
+  const queryEmbedding = await generateEmbedding(query);
+
+  // Search through all chunks in all files
+  const results: Array<{ filename: string; content: string; score: number; label?: string }> = [];
+
+  for (const file of files) {
+    if (file.chunks) {
+      for (const chunk of file.chunks) {
+        if (chunk.embedding && chunk.embedding.length > 0) {
+          const score = cosineSimilarity(queryEmbedding, chunk.embedding);
+          results.push({
+            filename: file.name,
+            content: chunk.content,
+            score,
+            label: chunk.label,
+          });
+        }
+      }
+    } else if (file.sourceContent) {
+      // File doesn't have chunked embeddings, try to generate on the fly
+      try {
+        const embedding = await generateEmbedding(file.sourceContent.slice(0, 2000));
+        const score = cosineSimilarity(queryEmbedding, embedding);
+        results.push({
+          filename: file.name,
+          content: file.sourceContent.slice(0, 2000),
+          score,
+        });
+      } catch (err) {
+        // Skip files that fail embedding
+      }
+    }
+  }
+
+  // Sort by score and return top K
+  return results
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
+}
+
+/**
+ * Build context using semantic search (prioritizes relevant content)
+ */
+export async function buildSemanticContext(
+  query: string,
+  files: Array<{ 
+    name: string; 
+    sourceContent?: string; 
+    chunks?: Array<{ content: string; embedding?: number[]; label?: string }>;
+  }>,
+  maxChars = 30000
+): Promise<{ context: string; searchResults: Array<{ filename: string; score: number }> }> {
+  // Try semantic search first
+  const searchResults = await semanticSearchFiles(query, files, 10);
+  
+  if (searchResults.length > 0) {
+    let context = '📊 **Relevant content found via semantic search:**\n\n';
+    let charCount = context.length;
+    const filesSeen = new Set<string>();
+    const resultSummary: Array<{ filename: string; score: number }> = [];
+
+    for (const result of searchResults) {
+      const entry = `--- ${result.filename} (${(result.score * 100).toFixed(1)}% match) ---\n${result.content}\n\n`;
+      
+      if (charCount + entry.length > maxChars) break;
+      
+      context += entry;
+      charCount += entry.length;
+      
+      if (!filesSeen.has(result.filename)) {
+        filesSeen.add(result.filename);
+        resultSummary.push({ filename: result.filename, score: result.score });
+      }
+    }
+
+    return { context, searchResults: resultSummary };
+  }
+
+  // Fall back to regular context if no embeddings available
+  return { 
+    context: buildContext(files, maxChars), 
+    searchResults: [] 
+  };
+}
+
+/**
  * Main function to call AI provider
+ * Now uses semantic search for better context!
  */
 export async function callAI(
   provider: ProviderConfig,
   messages: AIMessage[],
-  files: Array<{ name: string; sourceContent?: string; source?: string }>
+  files: Array<{ 
+    name: string; 
+    sourceContent?: string; 
+    source?: string;
+    chunks?: Array<{ content: string; embedding?: number[]; label?: string }>;
+  }>
 ): Promise<AIResponse> {
   try {
-    const context = buildContext(files);
+    // Get the latest user message for semantic search
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    const query = lastUserMessage?.content || '';
+
+    // Use semantic search to find relevant context
+    let context: string;
+    let searchInfo = '';
+    
+    try {
+      const { context: semanticContext, searchResults } = await buildSemanticContext(query, files);
+      context = semanticContext;
+      
+      if (searchResults.length > 0) {
+        searchInfo = `\n\n🔍 *Found ${searchResults.length} relevant file(s) via semantic search*`;
+        console.log('[AI Chat] Semantic search results:', searchResults);
+      }
+    } catch (err) {
+      console.warn('[AI Chat] Semantic search failed, using fallback:', err);
+      context = buildContext(files);
+    }
+
     let content = '';
 
     switch (provider.id) {
@@ -302,7 +445,7 @@ export async function callAI(
     }
 
     const actions = parseActions(content);
-    const cleanedContent = cleanResponse(content);
+    const cleanedContent = cleanResponse(content) + searchInfo;
 
     return { content: cleanedContent, actions };
   } catch (error: any) {
