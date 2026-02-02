@@ -10,6 +10,15 @@ import {
   getLibraryFolder,
   type LibraryFile 
 } from './lib/library';
+import {
+  initEmbeddings,
+  generateEmbedding,
+  generateEmbeddings,
+  getCurrentModel,
+  isReady as isEmbeddingsReady,
+  EMBEDDING_MODELS,
+  type ModelId,
+} from './lib/embeddings';
 
 // ============================================================
 // TERRONEX DESIGN SYSTEM - Styles
@@ -1239,7 +1248,7 @@ const CHUNK_TYPE = { TEXT: 1, TABLE_JSON: 2, IMAGE: 3, AUDIO: 4, VIDEO: 5, CODE:
 function encodeAifBinV2(options: {
   metadata: Record<string, any>;
   rawContent?: string;
-  chunks: Array<{ label: string; type: string; content: string }>;
+  chunks: Array<{ label: string; type: string; content: string; embedding?: number[] }>;
 }): Uint8Array {
   const { metadata, rawContent, chunks } = options;
   
@@ -1252,7 +1261,12 @@ function encodeAifBinV2(options: {
   // Encode chunks
   const encodedChunks: Uint8Array[] = [];
   for (const chunk of chunks) {
-    const chunkMeta = msgpackEncode({ label: chunk.label, type: chunk.type });
+    // Include embedding in chunk metadata if present
+    const chunkMetaObj: Record<string, any> = { label: chunk.label, type: chunk.type };
+    if (chunk.embedding && chunk.embedding.length > 0) {
+      chunkMetaObj.embedding = chunk.embedding;
+    }
+    const chunkMeta = msgpackEncode(chunkMetaObj);
     const chunkData = new TextEncoder().encode(chunk.content);
     
     // Chunk format: type(u32) + dataLen(u64) + metaLen(u64) + meta + data
@@ -1962,7 +1976,7 @@ const IngestorTab: React.FC<{
   };
 
   // Convert a file to AIF-BIN format
-  const convertToAifBin = async (file: File): Promise<Blob> => {
+  const convertToAifBin = async (file: File, onEmbeddingProgress?: (status: string) => void): Promise<Blob> => {
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
     const arrayBuffer = await file.arrayBuffer();
@@ -1973,7 +1987,7 @@ const IngestorTab: React.FC<{
     const geminiKey = geminiProvider?.apiKey;
     
     let extractedContent = '';
-    let chunks: any[] = [];
+    let chunks: Array<{ label: string; type: string; content: string; embedding?: number[] }> = [];
     let extractionMethod = 'text';
     
     if ((isPdf || isImage) && geminiKey) {
@@ -2023,6 +2037,33 @@ const IngestorTab: React.FC<{
       }
     }
     
+    // Generate embeddings for each chunk
+    if (chunks.length > 0 && chunks[0].content && chunks[0].type !== 'error' && chunks[0].type !== 'info') {
+      onEmbeddingProgress?.('Initializing embedding model...');
+      try {
+        await initEmbeddings('minilm', (progress, status) => {
+          onEmbeddingProgress?.(status);
+        });
+        
+        onEmbeddingProgress?.('Generating embeddings...');
+        for (let i = 0; i < chunks.length; i++) {
+          if (chunks[i].content) {
+            const embedding = await generateEmbedding(chunks[i].content);
+            chunks[i].embedding = embedding;
+            onEmbeddingProgress?.(`Generated embedding ${i + 1}/${chunks.length} (${embedding.length} dimensions)`);
+          }
+        }
+        onEmbeddingProgress?.('Embeddings complete!');
+      } catch (err: any) {
+        console.error('Embedding generation failed:', err);
+        onEmbeddingProgress?.(`Embedding error: ${err.message}`);
+        // Continue without embeddings - file still valid
+      }
+    }
+    
+    // Get model info for metadata
+    const modelInfo = isEmbeddingsReady() ? getCurrentModel() : null;
+    
     // Create AIF-BIN v2 binary format
     const metadata = {
       version: '2.0.0',
@@ -2035,6 +2076,9 @@ const IngestorTab: React.FC<{
       convertedAt: new Date().toISOString(),
       provider: extractionMethod === 'gemini-vision' ? 'gemini' : provider,
       extractionMethod,
+      // Embedding model info
+      embeddingModel: modelInfo?.id || null,
+      embeddingDimensions: modelInfo?.dimensions || null,
       entities: {
         dates: (extractedContent.match(/\d{4}-\d{2}-\d{2}/g) || []).slice(0, 10),
       },
@@ -2134,10 +2178,12 @@ const IngestorTab: React.FC<{
           ));
         }
         
-        // Actually convert the file
+        // Actually convert the file with embeddings
         console.log(`Converting file ${i + 1}/${files.length}: ${file.name}`);
-        const blob = await convertToAifBin(file.file);
-        console.log(`Converted ${file.name}: ${blob.size} bytes`);
+        const blob = await convertToAifBin(file.file, (status) => {
+          console.log(`[${file.name}] ${status}`);
+        });
+        console.log(`Converted ${file.name}: ${blob.size} bytes (with embeddings)`);
         const outputName = file.name.replace(/\.[^.]+$/, '') + '.aif-bin';
         
         // More progress
