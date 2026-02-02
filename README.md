@@ -1,55 +1,16 @@
-# AIF-BIN Pro
+# AIF-BIN Pro CLI
 
-**AI Formatted - Binary** — Professional toolkit for semantic search, batch processing, and visual inspection.
+**Professional command-line toolkit for semantic document memory.**
 
 [![Patent Pending](https://img.shields.io/badge/Patent-Pending-blue.svg)](https://www.terronex.dev)
-
-| Version | Extension | Full Name | Format |
-|---------|-----------|-----------|--------|
-| v1 | `.aimf` | AI Memory Format | JSON |
-| v2 | `.aif-bin` | AI Formatted - Binary | Binary (MessagePack) |
-
-Pro primarily uses the v2 AIF-BIN format (.aif-bin) for optimal performance.
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
-## Documentation
+## What is AIF-BIN Pro?
 
-- [Technical Whitepaper](docs/whitepaper.html) - Full specification and theory
-
-## What is AIF-BIN?
-
-A file format specification with two versions:
-- **AIMF** (.aimf) - AI Memory Format, v1 JSON encoding
-- **AIF-BIN** (.aif-bin) - AI Formatted - Binary, v2 binary encoding
-
-A single `.aimf` or `.aif-bin` file contains:
-
-- **Original document** — The source file preserved
-- **Extracted content** — Text, tables, code blocks
-- **Embeddings** — Vector representations for semantic search
-- **Metadata** — Title, tags, timestamps, checksums
-
-One file. Fully portable. Works offline.
-
----
-
-## What's Included
-
-```
-aifbin-pro/
-├── cli/                    # Command-line tools
-│   ├── aifbin_pro.py       # Main CLI with all commands
-│   └── aifbin_spec_v2.py   # v2 binary format library
-├── studio/                 # Desktop app (Tauri)
-├── inspector/              # Web-based file analyzer (React)
-├── releases/               # Pre-built binaries
-├── legal/                  # Terms, Privacy Policy
-└── docs/                   # Documentation
-```
+AIF-BIN Pro is a command-line tool for converting documents into searchable AI memory files. It generates real vector embeddings for semantic search — find content by meaning, not just keywords.
 
 ---
 
@@ -60,29 +21,35 @@ aifbin-pro/
 pip install -r requirements.txt
 
 # Convert markdown to AIF-BIN
-python3 cli/aifbin_pro.py migrate notes/ -o memories/ --parallel
+python3 cli/aifbin_pro.py migrate notes/ -o memories/
 
 # Semantic search
-python3 cli/aifbin_pro.py search "query" -d memories/
+python3 cli/aifbin_pro.py search "project decisions" -d memories/
 
 # File info
 python3 cli/aifbin_pro.py info file.aif-bin
+
+# Extract original content
+python3 cli/aifbin_pro.py extract file.aif-bin
 ```
 
 ---
 
-## CLI Commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `migrate` | Convert files to AIF-BIN (v2 binary format) |
-| `search` | Semantic search across memories |
-| `info` | Show file metadata and structure |
-| `extract` | Recover original content |
-| `watch` | Auto-sync on file changes |
+| `migrate` | Convert files to AIF-BIN (v2 binary format) with embeddings |
+| `search` | Semantic search across your memory files |
+| `info` | Show file metadata, chunks, and model info |
+| `extract` | Recover original content from AIF-BIN |
+| `export` | Export to JSON, CSV, Markdown, or HTML |
+| `watch` | Auto-sync directory on file changes |
 | `diff` | Compare two AIF-BIN files |
-| `export` | Export to JSON, CSV, HTML, Markdown |
 | `models` | List available embedding models |
+| `providers` | List AI providers for intelligent extraction |
+| `ingest` | Convert any file with AI extraction |
+| `config` | Configure AI provider API keys |
 
 ---
 
@@ -90,72 +57,40 @@ python3 cli/aifbin_pro.py info file.aif-bin
 
 | Model | Dimensions | Description |
 |-------|------------|-------------|
-| minilm | 384 | Fast, good quality (default) |
-| mpnet | 768 | Higher quality, slower |
-| bge-small | 384 | Optimized for retrieval |
-| bge-base | 768 | Best quality retrieval |
-| e5-small | 384 | Microsoft E5, fast |
+| `minilm` | 384 | Fast, good quality (default) |
+| `mpnet` | 768 | Higher quality, slower |
+| `bge-small` | 384 | Optimized for retrieval |
+| `bge-base` | 768 | Best quality retrieval |
+| `e5-small` | 384 | Microsoft E5, fast |
 
 ---
 
-## Desktop App (Studio)
+## AI Providers (for `ingest` command)
 
-Native desktop app for managing your AI memory files. Built with Tauri (Rust backend + React frontend) for desktop performance with web flexibility.
+| Provider | Use Case |
+|----------|----------|
+| `anthropic` | Best for documents |
+| `openai` | Good all-around |
+| `gemini` | Good for images/PDFs |
+| `ollama` | Local, free, private |
+| `none` | Basic text extraction |
 
-**Key Features:**
-
-- **Library Sidebar:** Persistent file list with search and sort. Manage your local AIF-BIN collection.
-- **AI Chat Sidebar:** Interact with your documents. Ask questions, summarize, analyze, and use AI commands to highlight, create, and rename files.
-  - **Real Semantic Search:** AI Chat uses local embeddings to find the most relevant content in your library and provide focused answers.
-- **Ingestor:** Convert any file (PDF, image, text) to AIF-BIN with intelligent extraction powered by Gemini Vision (if configured).
-  - **Embedding Generation:** Automatically generates real 384/768-dimensional vector embeddings using Transformers.js for semantic search.
-- **Inspector:** Detailed view of AIF-BIN files: overview, source, chunks, metadata, hex bytes.
-- **Settings:** Configure AI providers (Anthropic, OpenAI, Gemini, Ollama) and other app preferences.
-
-**Downloads:**
-- [Linux x64 Binary](releases/v1.0.0/aifbin-studio) (11MB)
-- [Debian/Ubuntu .deb](releases/v1.0.0/AIF-BIN%20Studio_1.0.0_amd64.deb) (3.4MB)
-- [Fedora/RHEL .rpm](releases/v1.0.0/AIF-BIN%20Studio-1.0.0-1.x86_64.rpm) (3.4MB)
-
-**Build from source:**
+Configure with:
 ```bash
-cd studio
-npm install
-cargo tauri build
+python3 cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
 ```
 
 ---
 
-## Web Inspector
+## File Format
 
-Visual tool for analyzing AIF-BIN files in the browser.
-
-```bash
-cd inspector
-npm install
-npm run dev
-```
-
-**Features:**
-- Parse and validate v2 binary format
-- View metadata and content chunks
-- Hex byte inspector
-- Extract embedded content
-- Embedding visualization
-
----
-
-## v2 Binary Format
-
-Compact binary format with MessagePack encoding:
-
-- ~50% smaller than JSON-based formats
-- Fast parsing with fixed-offset headers
+AIF-BIN v2 is a compact binary format with:
+- MessagePack encoding (~50% smaller than JSON)
+- Fixed-offset headers for fast parsing
 - Embedded CRC64 checksums
+- Vector embeddings for semantic search
 - Original content preservation
-- Streaming support for large files
 
-**Format Structure:**
 ```
 [Header: 64 bytes]
   Magic: "AIFBIN\x00\x01"
@@ -164,16 +99,24 @@ Compact binary format with MessagePack encoding:
 [Metadata Section]
   MessagePack blob
 
-[Original Raw Section] (optional)
+[Original Raw Section]
   Preserved source file
 
 [Content Chunks]
-  Typed chunks: TEXT, TABLE, IMAGE, AUDIO, VIDEO, CODE
-  Each with metadata + embeddings
+  Typed chunks with embeddings
 
 [Footer]
   Index + Checksum
 ```
+
+---
+
+## Related Projects
+
+| Project | Description |
+|---------|-------------|
+| [AIF-BIN Lite](https://github.com/terronexdev/aifbin-lite) | Free CLI (format conversion only, no embeddings) |
+| [AIF-BIN Studio](https://github.com/terronexdev/aifbin-studio) | Desktop app with AI Chat and visual interface |
 
 ---
 
@@ -182,31 +125,23 @@ Compact binary format with MessagePack encoding:
 - **Local-first:** All processing happens on your machine
 - **No telemetry:** We don't collect usage data
 - **BYO API keys:** Use your own AI provider credentials
-- **Open format:** No vendor lock-in
+- **Open format:** AIF-BIN files are portable, no vendor lock-in
 
 ---
 
-## Legal Notices
+## Legal
 
-- **AIF-BIN™** is a trademark of Terronex.dev.
-- This software is provided under the **MIT License** (see [LICENSE](LICENSE)).
-- See [NOTICE](NOTICE) file for additional copyright and trademark information.
-- This is **beta software** — use at your own risk.
+- **AIF-BIN™** is a trademark of Terronex.dev
+- Licensed under the **MIT License** (see [LICENSE](LICENSE))
+- See [NOTICE](NOTICE) for patent and trademark information
 
 ---
 
 ## Links
 
 - **Website:** [terronex.dev/aifbin](https://terronex.dev/aifbin/)
-- **GitHub:** [github.com/terronexdev/aifbin-pro](https://github.com/terronexdev/aifbin-pro)
 - **Support:** support@terronex.dev
 - **Twitter:** [@terronexdev](https://x.com/terronexdev)
-
----
-
-## Contributing
-
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) before submitting PRs.
 
 ---
 
