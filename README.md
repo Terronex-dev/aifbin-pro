@@ -100,19 +100,22 @@ python3 cli/aifbin_pro.py info file.aif-bin
 
 ## Desktop App (Studio)
 
-Native desktop app for inspecting and managing AIF-BIN files. Built with Tauri for maximum performance and minimal size.
+Native desktop app for managing your AI memory files. Built with Tauri (Rust backend + React frontend) for desktop performance with web flexibility.
+
+**Key Features:**
+
+- **Library Sidebar:** Persistent file list with search and sort. Manage your local AIF-BIN collection.
+- **AI Chat Sidebar:** Interact with your documents. Ask questions, summarize, analyze, and use AI commands to highlight, create, and rename files.
+  - **Real Semantic Search:** AI Chat uses local embeddings to find the most relevant content in your library and provide focused answers.
+- **Ingestor:** Convert any file (PDF, image, text) to AIF-BIN with intelligent extraction powered by Gemini Vision (if configured).
+  - **Embedding Generation:** Automatically generates real 384/768-dimensional vector embeddings using Transformers.js for semantic search.
+- **Inspector:** Detailed view of AIF-BIN files: overview, source, chunks, metadata, hex bytes.
+- **Settings:** Configure AI providers (Anthropic, OpenAI, Gemini, Ollama) and other app preferences.
 
 **Downloads:**
 - [Linux x64 Binary](releases/v1.0.0/aifbin-studio) (11MB)
 - [Debian/Ubuntu .deb](releases/v1.0.0/AIF-BIN%20Studio_1.0.0_amd64.deb) (3.4MB)
 - [Fedora/RHEL .rpm](releases/v1.0.0/AIF-BIN%20Studio-1.0.0-1.x86_64.rpm) (3.4MB)
-
-**Features:**
-- Full v2 binary format parser
-- Hex byte inspector
-- Content chunk viewer
-- File library management
-- Dark theme (Terronex design system)
 
 **Build from source:**
 ```bash
