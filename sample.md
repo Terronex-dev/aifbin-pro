@@ -1,6 +1,6 @@
 # Sample Document
 
-This is a sample markdown file for testing AIF-BIN Pro.
+This is a sample markdown file for testing.
 
 ## Meeting Notes
 
@@ -21,18 +21,28 @@ This is a sample markdown file for testing AIF-BIN Pro.
 
 ## Project Overview
 
-The AIF-BIN project aims to create a universal format for AI memory files. Key features include:
+Our project aims to improve document management across the organization. Key goals include:
 
-- Semantic search with vector embeddings
-- Original content preservation
-- Multiple export formats
+- Better search functionality
+- Faster retrieval times
 - Cross-platform compatibility
+- Improved collaboration tools
 
-### Technical Details
+### Technical Requirements
 
-- Format: Binary with MessagePack encoding
-- Embeddings: 384 or 768 dimensions
-- Compression: ~50% smaller than JSON equivalent
+- Must support multiple file formats
+- Needs offline capability
+- Should integrate with existing tools
+- Response time under 200ms
+
+## Budget Summary
+
+| Category | Amount |
+|----------|--------|
+| Development | $50,000 |
+| Infrastructure | $15,000 |
+| Testing | $10,000 |
+| Contingency | $5,000 |
 
 ## Next Steps
 
