@@ -13,7 +13,6 @@ The following are trademarks of Terronex.dev:
 
 - **AIF-BIN™**
 - **AIF-BIN Pro™**
-- **AIF-BIN Studio™**
 
 ### Permitted Uses
 

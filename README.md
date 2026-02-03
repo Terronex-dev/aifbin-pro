@@ -27,7 +27,7 @@ AIF-BIN Pro is a command-line tool for converting documents into searchable AI m
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/terronexdev/aifbin-pro.git
+git clone https://github.com/Terronex-dev/aifbin-pro.git
 cd aifbin-pro
 ```
 
@@ -403,8 +403,7 @@ ollama pull llama3.1:8b
 
 | Project | Description |
 |---------|-------------|
-| [AIF-BIN Lite](https://github.com/terronexdev/aifbin-lite) | Free CLI (format conversion only, no embeddings) |
-| [AIF-BIN Studio](https://github.com/terronexdev/aifbin-studio) | Desktop app with AI Chat and visual interface |
+| [AIF-BIN Lite](https://github.com/Terronex-dev/aifbin-lite) | Free CLI (format conversion only, no embeddings) |
 
 ---
 
