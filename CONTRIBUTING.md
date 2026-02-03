@@ -7,7 +7,7 @@ Thank you for your interest in contributing!
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/aifbin-pro.git
+   git clone https://github.com/Terronex-dev/aifbin-pro.git
    cd aifbin-pro
    ```
 3. Install dependencies:
