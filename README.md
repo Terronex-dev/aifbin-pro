@@ -32,28 +32,22 @@ git clone https://github.com/Terronex-dev/aifbin-pro.git
 cd aifbin-pro
 ```
 
-### Windows (PowerShell/CMD)
+### Using the Wrapper Script
 
-```powershell
-# Install dependencies
-pip install -r requirements.txt
-
-# Verify installation
-python cli/aifbin_pro.py --help
-```
-
-### Linux / macOS / WSL
+For convenience, a wrapper script is provided. Make it executable first:
 
 ```bash
-# Install dependencies
-pip3 install -r requirements.txt
-
-# Or on Debian/Ubuntu/WSL with externally-managed-environment:
-pip3 install -r requirements.txt --break-system-packages
-
-# Verify installation
-python3 cli/aifbin_pro.py --help
+chmod +x aifbin-pro
 ```
+
+Now you can run the CLI directly:
+
+```bash
+# Verify installation
+./aifbin-pro --help
+```
+
+The examples below will use this wrapper. If you prefer, you can still run `python3 cli/aifbin_pro.py` or `python cli/aifbin_pro.py`.
 
 ### Optional: Virtual Environment (Recommended)
 
@@ -78,36 +72,18 @@ python cli/aifbin_pro.py --help
 
 A `sample.md` file is included for testing.
 
-### Windows
-
-```powershell
-# Convert the sample file to AIF-BIN with embeddings
-python cli/aifbin_pro.py migrate sample.md -o output/
-
-# Search your memories semantically
-python cli/aifbin_pro.py search "project decisions" -d output/
-
-# View file info
-python cli/aifbin_pro.py info output/sample.aif-bin
-
-# Extract original content
-python cli/aifbin_pro.py extract output/sample.aif-bin
-```
-
-### Linux / macOS / WSL
-
 ```bash
 # Convert the sample file to AIF-BIN with embeddings
-python3 cli/aifbin_pro.py migrate sample.md -o output/
+./aifbin-pro migrate sample.md -o output/
 
 # Search your memories semantically
-python3 cli/aifbin_pro.py search "project decisions" -d output/
+./aifbin-pro search "project decisions" -d output/
 
 # View file info
-python3 cli/aifbin_pro.py info output/sample.aif-bin
+./aifbin-pro info output/sample.aif-bin
 
 # Extract original content
-python3 cli/aifbin_pro.py extract output/sample.aif-bin
+./aifbin-pro extract output/sample.aif-bin
 ```
 
 ---
@@ -134,124 +110,63 @@ python3 cli/aifbin_pro.py extract output/sample.aif-bin
 
 ### Migrate (Convert Files)
 
-**Windows:**
-```powershell
-# Single file
-python cli/aifbin_pro.py migrate document.md -o output/
-
-# Entire directory
-python cli/aifbin_pro.py migrate notes/ -o output/
-
-# Recursive with parallel processing
-python cli/aifbin_pro.py migrate notes/ -o output/ -r -p
-
-# Use a different embedding model
-python cli/aifbin_pro.py migrate notes/ -o output/ -m bge-small
-```
-
-**Linux / macOS / WSL:**
 ```bash
 # Single file
-python3 cli/aifbin_pro.py migrate document.md -o output/
+./aifbin-pro migrate document.md -o output/
 
 # Entire directory
-python3 cli/aifbin_pro.py migrate notes/ -o output/
+./aifbin-pro migrate notes/ -o output/
 
 # Recursive with parallel processing
-python3 cli/aifbin_pro.py migrate notes/ -o output/ -r -p
+./aifbin-pro migrate notes/ -o output/ -r -p
 
 # Use a different embedding model
-python3 cli/aifbin_pro.py migrate notes/ -o output/ -m bge-small
+./aifbin-pro migrate notes/ -o output/ -m bge-small
 ```
 
 ### Search (Semantic Query)
 
-**Windows:**
-```powershell
-# Basic search
-python cli/aifbin_pro.py search "budget decisions" -d output/
-
-# Get more results
-python cli/aifbin_pro.py search "project timeline" -d output/ -k 10
-
-# Filter by date
-python cli/aifbin_pro.py search "meeting notes" -d output/ --after 2026-01-01
-```
-
-**Linux / macOS / WSL:**
 ```bash
 # Basic search
-python3 cli/aifbin_pro.py search "budget decisions" -d output/
+./aifbin-pro search "budget decisions" -d output/
 
 # Get more results
-python3 cli/aifbin_pro.py search "project timeline" -d output/ -k 10
+./aifbin-pro search "project timeline" -d output/ -k 10
 
 # Filter by date
-python3 cli/aifbin_pro.py search "meeting notes" -d output/ --after 2026-01-01
+./aifbin-pro search "meeting notes" -d output/ --after 2026-01-01
 ```
 
 ### Watch (Auto-Sync)
 
-**Windows:**
-```powershell
-# Watch a directory and auto-convert changes
-python cli/aifbin_pro.py watch notes/ -o output/
-
-# Custom check interval (seconds)
-python cli/aifbin_pro.py watch notes/ -o output/ -i 10
-```
-
-**Linux / macOS / WSL:**
 ```bash
 # Watch a directory and auto-convert changes
-python3 cli/aifbin_pro.py watch notes/ -o output/
+./aifbin-pro watch notes/ -o output/
 
 # Custom check interval (seconds)
-python3 cli/aifbin_pro.py watch notes/ -o output/ -i 10
+./aifbin-pro watch notes/ -o output/ -i 10
 ```
 
 ### Export (Convert to Other Formats)
 
-**Windows:**
-```powershell
-python cli/aifbin_pro.py export file.aif-bin -o output.json -f json
-python cli/aifbin_pro.py export file.aif-bin -o output.csv -f csv
-python cli/aifbin_pro.py export file.aif-bin -o output.md -f markdown
-python cli/aifbin_pro.py export file.aif-bin -o output.html -f html
-```
-
-**Linux / macOS / WSL:**
 ```bash
-python3 cli/aifbin_pro.py export file.aif-bin -o output.json -f json
-python3 cli/aifbin_pro.py export file.aif-bin -o output.csv -f csv
-python3 cli/aifbin_pro.py export file.aif-bin -o output.md -f markdown
-python3 cli/aifbin_pro.py export file.aif-bin -o output.html -f html
+./aifbin-pro export file.aif-bin -o output.json -f json
+./aifbin-pro export file.aif-bin -o output.csv -f csv
+./aifbin-pro export file.aif-bin -o output.md -f markdown
+./aifbin-pro export file.aif-bin -o output.html -f html
 ```
 
 ### Ingest (AI-Powered Extraction)
 
-**Windows:**
-```powershell
-# Configure an AI provider first
-python cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
-
-# Ingest files with AI extraction
-python cli/aifbin_pro.py ingest documents/ -o output/ -p anthropic
-
-# Use local Ollama (no API key needed)
-python cli/aifbin_pro.py ingest documents/ -o output/ -p ollama
-```
-
-**Linux / macOS / WSL:**
 ```bash
 # Configure an AI provider first
-python3 cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
+./aifbin-pro config --provider anthropic --api-key sk-ant-...
 
 # Ingest files with AI extraction
-python3 cli/aifbin_pro.py ingest documents/ -o output/ -p anthropic
+./aifbin-pro ingest documents/ -o output/ -p anthropic
 
 # Use local Ollama (no API key needed)
-python3 cli/aifbin_pro.py ingest documents/ -o output/ -p ollama
+./aifbin-pro ingest documents/ -o output/ -p ollama
 ```
 
 ---
@@ -268,14 +183,8 @@ python3 cli/aifbin_pro.py ingest documents/ -o output/ -p ollama
 
 List available models:
 
-**Windows:**
-```powershell
-python cli/aifbin_pro.py models
-```
-
-**Linux / macOS / WSL:**
 ```bash
-python3 cli/aifbin_pro.py models
+./aifbin-pro models
 ```
 
 ---
@@ -292,40 +201,21 @@ python3 cli/aifbin_pro.py models
 
 Configure providers:
 
-**Windows:**
-```powershell
-# Set API key
-python cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
-
-# Set default provider
-python cli/aifbin_pro.py config --default anthropic
-
-# View current config
-python cli/aifbin_pro.py config
-```
-
-**Linux / macOS / WSL:**
 ```bash
 # Set API key
-python3 cli/aifbin_pro.py config --provider anthropic --api-key sk-ant-...
+./aifbin-pro config --provider anthropic --api-key sk-ant-...
 
 # Set default provider
-python3 cli/aifbin_pro.py config --default anthropic
+./aifbin-pro config --default anthropic
 
 # View current config
-python3 cli/aifbin_pro.py config
+./aifbin-pro config
 ```
 
 List available providers:
 
-**Windows:**
-```powershell
-python cli/aifbin_pro.py providers
-```
-
-**Linux / macOS / WSL:**
 ```bash
-python3 cli/aifbin_pro.py providers
+./aifbin-pro providers
 ```
 
 ---
@@ -373,16 +263,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### `python3` not found on Windows
-
-On Windows, use `python` instead of `python3`:
-```powershell
-python cli/aifbin_pro.py --help
-```
-
 ### `ModuleNotFoundError: No module named 'sentence_transformers'`
 
-Install dependencies:
+You may need to install the project's dependencies.
+
 ```bash
 pip install -r requirements.txt
 ```
