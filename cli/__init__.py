@@ -1,0 +1,5 @@
+# AIF-BIN Pro CLI Package
+from .aifbin_pro import main
+
+__version__ = "1.0.0"
+__all__ = ["main"]
